@@ -1,0 +1,260 @@
+{
+  "publisherUnit": "科研管理办公室",
+  "projects": [
+    {
+      "id": "ap-ai4s-001",
+      "projectCode": "AI4S-2024-001",
+      "projectName": "气候大模型与科学计算平台",
+      "faculty": "AI4S学部",
+      "subDirection": "科学计算与模拟",
+      "projectLeader": "李明",
+      "reviewCompleted": true,
+      "reviewResult": "通过",
+      "reviewCompletedTime": "2024-05-08 10:23",
+      "facultyLeader": { "id": "u-f-ai4s", "name": "陈思远" },
+      "subDirectionLeader": { "id": "u-s-ai4s-compute", "name": "杨帆" },
+      "members": [
+        { "id": "u-p-ai4s-001", "name": "李明", "role": "projectLeader" },
+        { "id": "u-m-ai4s-001-a", "name": "周晴", "role": "projectMember" },
+        { "id": "u-m-ai4s-001-b", "name": "赵一", "role": "projectMember" }
+      ]
+    },
+    {
+      "id": "ap-ai4s-002",
+      "projectCode": "AI4S-2024-003",
+      "projectName": "AI驱动的材料设计与优化",
+      "faculty": "AI4S学部",
+      "subDirection": "材料智能设计",
+      "projectLeader": "王磊",
+      "reviewCompleted": true,
+      "reviewResult": "通过",
+      "reviewCompletedTime": "2024-05-07 16:45",
+      "facultyLeader": { "id": "u-f-ai4s", "name": "陈思远" },
+      "subDirectionLeader": { "id": "u-s-ai4s-material", "name": "马骁" },
+      "members": [
+        { "id": "u-p-ai4s-002", "name": "王磊", "role": "projectLeader" },
+        { "id": "u-m-ai4s-002-a", "name": "刘畅", "role": "projectMember" }
+      ]
+    },
+    {
+      "id": "ap-ai4s-003",
+      "projectCode": "AI4S-2024-006",
+      "projectName": "天文大数据智能分析平台",
+      "faculty": "AI4S学部",
+      "subDirection": "天文与空间科学",
+      "projectLeader": "张宇",
+      "reviewCompleted": true,
+      "reviewResult": "通过",
+      "reviewCompletedTime": "2024-05-06 09:18",
+      "facultyLeader": { "id": "u-f-ai4s", "name": "陈思远" },
+      "subDirectionLeader": { "id": "u-s-ai4s-space", "name": "邵晨" },
+      "members": [
+        { "id": "u-p-ai4s-003", "name": "张宇", "role": "projectLeader" },
+        { "id": "u-m-ai4s-003-a", "name": "林悦", "role": "projectMember" }
+      ]
+    },
+    {
+      "id": "ap-ai4s-004",
+      "projectCode": "AI4S-2024-008",
+      "projectName": "面向医学的多模态认知模型",
+      "faculty": "AI4S学部",
+      "subDirection": "智慧医疗",
+      "projectLeader": "刘静",
+      "reviewCompleted": true,
+      "reviewResult": "通过",
+      "reviewCompletedTime": "2024-05-05 18:20",
+      "facultyLeader": { "id": "u-f-ai4s", "name": "陈思远" },
+      "subDirectionLeader": { "id": "u-s-ai4s-medical", "name": "许诺" },
+      "members": [
+        { "id": "u-p-ai4s-004", "name": "刘静", "role": "projectLeader" },
+        { "id": "u-m-ai4s-004-a", "name": "沈航", "role": "projectMember" }
+      ]
+    },
+    {
+      "id": "ap-ai4s-005",
+      "projectCode": "AI4S-2024-010",
+      "projectName": "城市时空预测与决策系统",
+      "faculty": "AI4S学部",
+      "subDirection": "智慧城市",
+      "projectLeader": "陈泽",
+      "reviewCompleted": true,
+      "reviewResult": "通过",
+      "reviewCompletedTime": "2024-05-05 11:15",
+      "facultyLeader": { "id": "u-f-ai4s", "name": "陈思远" },
+      "subDirectionLeader": { "id": "u-s-ai4s-city", "name": "高杉" },
+      "members": [
+        { "id": "u-p-ai4s-005", "name": "陈泽", "role": "projectLeader" },
+        { "id": "u-m-ai4s-005-a", "name": "郭晨", "role": "projectMember" }
+      ]
+    },
+    {
+      "id": "ap-ai4s-006",
+      "projectCode": "AI4S-2024-012",
+      "projectName": "多源遥感智能解译研究",
+      "faculty": "AI4S学部",
+      "subDirection": "遥感智能",
+      "projectLeader": "赵琳",
+      "reviewCompleted": true,
+      "reviewResult": "通过",
+      "reviewCompletedTime": "2024-05-04 15:02",
+      "facultyLeader": { "id": "u-f-ai4s", "name": "陈思远" },
+      "subDirectionLeader": { "id": "u-s-ai4s-remote", "name": "韩露" },
+      "members": [
+        { "id": "u-p-ai4s-006", "name": "赵琳", "role": "projectLeader" },
+        { "id": "u-m-ai4s-006-a", "name": "许洋", "role": "projectMember" }
+      ]
+    },
+    {
+      "id": "ap-life-001",
+      "projectCode": "LIFE-2024-002",
+      "projectName": "单细胞多组学整合分析",
+      "faculty": "生命科学学部",
+      "subDirection": "基础组学",
+      "projectLeader": "刘洋",
+      "reviewCompleted": true,
+      "reviewResult": "通过",
+      "reviewCompletedTime": "2024-05-07 11:02",
+      "facultyLeader": { "id": "u-f-life", "name": "宋雨" },
+      "subDirectionLeader": { "id": "u-s-life-omics", "name": "蒋宁" },
+      "members": [
+        { "id": "u-p-life-001", "name": "刘洋", "role": "projectLeader" },
+        { "id": "u-m-life-001-a", "name": "何然", "role": "projectMember" }
+      ]
+    },
+    {
+      "id": "ap-life-002",
+      "projectCode": "LIFE-2024-004",
+      "projectName": "蛋白质结构预测与功能解析",
+      "faculty": "生命科学学部",
+      "subDirection": "结构生物学",
+      "projectLeader": "陈晨",
+      "reviewCompleted": true,
+      "reviewResult": "通过",
+      "reviewCompletedTime": "2024-05-06 14:30",
+      "facultyLeader": { "id": "u-f-life", "name": "宋雨" },
+      "subDirectionLeader": { "id": "u-s-life-structure", "name": "顾南" },
+      "members": [
+        { "id": "u-p-life-002", "name": "陈晨", "role": "projectLeader" },
+        { "id": "u-m-life-002-a", "name": "韩若", "role": "projectMember" }
+      ]
+    },
+    {
+      "id": "ap-material-001",
+      "projectCode": "MATS-2024-001",
+      "projectName": "高熵合金的设计与制备",
+      "faculty": "材料科学学部",
+      "subDirection": "金属材料",
+      "projectLeader": "周强",
+      "reviewCompleted": true,
+      "reviewResult": "通过",
+      "reviewCompletedTime": "2024-05-05 16:10",
+      "facultyLeader": { "id": "u-f-material", "name": "黄健" },
+      "subDirectionLeader": { "id": "u-s-material-metal", "name": "钟锐" },
+      "members": [
+        { "id": "u-p-material-001", "name": "周强", "role": "projectLeader" },
+        { "id": "u-m-material-001-a", "name": "孟然", "role": "projectMember" }
+      ]
+    },
+    {
+      "id": "ap-material-002",
+      "projectCode": "MATS-2024-003",
+      "projectName": "二维材料器件性能调控",
+      "faculty": "材料科学学部",
+      "subDirection": "功能材料",
+      "projectLeader": "赵敏",
+      "reviewCompleted": true,
+      "reviewResult": "通过",
+      "reviewCompletedTime": "2024-05-04 10:55",
+      "facultyLeader": { "id": "u-f-material", "name": "黄健" },
+      "subDirectionLeader": { "id": "u-s-material-device", "name": "邢远" },
+      "members": [
+        { "id": "u-p-material-002", "name": "赵敏", "role": "projectLeader" },
+        { "id": "u-m-material-002-a", "name": "张露", "role": "projectMember" }
+      ]
+    },
+    {
+      "id": "ap-info-001",
+      "projectCode": "INFO-2024-002",
+      "projectName": "面向6G的智能通信关键技术",
+      "faculty": "信息科学学部",
+      "subDirection": "通信与网络",
+      "projectLeader": "孙凯",
+      "reviewCompleted": true,
+      "reviewResult": "通过",
+      "reviewCompletedTime": "2024-05-05 13:22",
+      "facultyLeader": { "id": "u-f-info", "name": "周子航" },
+      "subDirectionLeader": { "id": "u-s-info-network", "name": "王扬" },
+      "members": [
+        { "id": "u-p-info-001", "name": "孙凯", "role": "projectLeader" },
+        { "id": "u-m-info-001-a", "name": "陆青", "role": "projectMember" }
+      ]
+    },
+    {
+      "id": "ap-info-002",
+      "projectCode": "INFO-2024-004",
+      "projectName": "可信人工智能理论与方法",
+      "faculty": "信息科学学部",
+      "subDirection": "人工智能",
+      "projectLeader": "吴迪",
+      "reviewCompleted": true,
+      "reviewResult": "通过",
+      "reviewCompletedTime": "2024-05-04 17:40",
+      "facultyLeader": { "id": "u-f-info", "name": "周子航" },
+      "subDirectionLeader": { "id": "u-s-info-ai", "name": "罗敏" },
+      "members": [
+        { "id": "u-p-info-002", "name": "吴迪", "role": "projectLeader" },
+        { "id": "u-m-info-002-a", "name": "叶凡", "role": "projectMember" }
+      ]
+    },
+    {
+      "id": "ap-earth-001",
+      "projectCode": "EARTH-2024-001",
+      "projectName": "极端天气智能预测模型",
+      "faculty": "地球与环境科学学部",
+      "subDirection": "气象智能",
+      "projectLeader": "罗青",
+      "reviewCompleted": true,
+      "reviewResult": "通过",
+      "reviewCompletedTime": "2024-05-03 09:36",
+      "facultyLeader": { "id": "u-f-earth", "name": "高敏" },
+      "subDirectionLeader": { "id": "u-s-earth-weather", "name": "任晓" },
+      "members": [
+        { "id": "u-p-earth-001", "name": "罗青", "role": "projectLeader" },
+        { "id": "u-m-earth-001-a", "name": "卢一", "role": "projectMember" }
+      ]
+    },
+    {
+      "id": "ap-earth-002",
+      "projectCode": "EARTH-2024-003",
+      "projectName": "流域生态修复评估系统",
+      "faculty": "地球与环境科学学部",
+      "subDirection": "生态环境",
+      "projectLeader": "沈琪",
+      "reviewCompleted": true,
+      "reviewResult": "通过",
+      "reviewCompletedTime": "2024-05-02 15:18",
+      "facultyLeader": { "id": "u-f-earth", "name": "高敏" },
+      "subDirectionLeader": { "id": "u-s-earth-ecology", "name": "王晴" },
+      "members": [
+        { "id": "u-p-earth-002", "name": "沈琪", "role": "projectLeader" },
+        { "id": "u-m-earth-002-a", "name": "唐可", "role": "projectMember" }
+      ]
+    },
+    {
+      "id": "ap-blocked-001",
+      "projectCode": "AI4S-2024-099",
+      "projectName": "未完成评审的科研项目",
+      "faculty": "AI4S学部",
+      "subDirection": "测试方向",
+      "projectLeader": "测试负责人",
+      "reviewCompleted": false,
+      "reviewResult": "评审中",
+      "reviewCompletedTime": "",
+      "facultyLeader": { "id": "u-f-ai4s", "name": "陈思远" },
+      "subDirectionLeader": { "id": "u-s-test", "name": "测试方向负责人" },
+      "members": [
+        { "id": "u-p-blocked", "name": "测试负责人", "role": "projectLeader" }
+      ]
+    }
+  ]
+}

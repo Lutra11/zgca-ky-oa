@@ -1,0 +1,195 @@
+{
+  "current": {
+    "id": "QRM-2026-Q1",
+    "name": "2026年度第一季度评审会",
+    "status": "评审过程中",
+    "statusTone": "success",
+    "reviewPeriod": "2026.03.10 - 2026.03.24",
+    "projectAssessmentPeriod": "2026.01 - 2026.03",
+    "evaluationDeadline": "2026.03.25",
+    "projectCount": 15,
+    "directionCount": 12,
+    "facultyCount": 3,
+    "approvalStatus": "待审批",
+    "reviewRecorder": "董超",
+    "reviewApplicant": "赵欣欣",
+    "announcementPublisher": "董超",
+    "announcementAuditor": "施欣欣",
+    "roleViews": {
+      "researchProjectAdmin": {
+        "roleLabel": "PMO",
+        "summary": "负责季度评审会的发起、项目范围维护、评审过程跟踪与公告发布。",
+        "primaryAction": "进入评审",
+        "primaryRoute": "/research-project-admin/review-data-maintenance",
+        "dangerAction": "结束评审",
+        "focusItems": ["数据维护", "过程监控", "公告发布"],
+        "metrics": [
+          { "label": "评审周期", "value": "2026.03.10 - 2026.03.24" },
+          { "label": "项目考核周期", "value": "2026.01 - 2026.03" },
+          { "label": "360环评及绩效截止", "value": "2026.03.25" },
+          { "label": "参评项目数", "value": "15 个" },
+          { "label": "参评子方向数", "value": "12 个" },
+          { "label": "参评学部数", "value": "3 个" },
+          { "label": "审批状态", "value": "待审批" }
+        ]
+      },
+      "researchDepartmentLeader": {
+        "roleLabel": "科研部负责人",
+        "summary": "负责审批评审申请、查看评审监控与确认结果流转。",
+        "primaryAction": "查看评审项目",
+        "primaryRoute": "/research-dept-leader/review-projects",
+        "dangerAction": "",
+        "focusItems": ["审批评审", "评审监控", "评审结果"],
+        "metrics": [
+          { "label": "评审周期", "value": "2026.03.10 - 2026.03.24" },
+          { "label": "项目考核周期", "value": "2026.01 - 2026.03" },
+          { "label": "360环评及绩效截止", "value": "2026.03.25" },
+          { "label": "参评项目数", "value": "15 个" },
+          { "label": "参评子方向数", "value": "12 个" },
+          { "label": "参评学部数", "value": "3 个" },
+          { "label": "审批状态", "value": "待审批" }
+        ]
+      },
+      "facultyLeader": {
+        "roleLabel": "学部负责人",
+        "summary": "负责本学部材料提交、成果维护与评审结果确认。",
+        "primaryAction": "查看材料提交",
+        "primaryRoute": "/faculty-leader/review-material-submission",
+        "dangerAction": "",
+        "focusItems": ["材料提交", "成果维护", "学部确认"],
+        "metrics": [
+          { "label": "评审周期", "value": "2026.03.10 - 2026.03.24" },
+          { "label": "项目考核周期", "value": "2026.01 - 2026.03" },
+          { "label": "360环评及绩效截止", "value": "2026.03.25" },
+          { "label": "参评项目数", "value": "15 个" },
+          { "label": "参评子方向数", "value": "12 个" }
+        ]
+      },
+      "projectLeader": {
+        "roleLabel": "子方向负责人",
+        "summary": "负责完善本子方向评审信息、指定评委和评审时间。",
+        "primaryAction": "完善评审信息",
+        "primaryRoute": "/sub-direction-leader/review-management",
+        "dangerAction": "",
+        "focusItems": ["评委配置", "时间配置", "结果查看"],
+        "metrics": [
+          { "label": "评审周期", "value": "2026.03.10 - 2026.03.24" },
+          { "label": "项目考核周期", "value": "2026.01 - 2026.03" },
+          { "label": "360环评及绩效截止", "value": "2026.03.25" },
+          { "label": "参评项目数", "value": "15 个" },
+          { "label": "审批状态", "value": "待完善" }
+        ]
+      },
+      "reviewer": {
+        "roleLabel": "评委",
+        "summary": "负责查看待评项目、提交评审意见和评审结果。",
+        "primaryAction": "进入项目评审",
+        "primaryRoute": "/review-judge/project-review",
+        "dangerAction": "",
+        "focusItems": ["项目评审", "结果提交", "意见补充"],
+        "metrics": [
+          { "label": "评审周期", "value": "2026.03.10 - 2026.03.24" },
+          { "label": "项目考核周期", "value": "2026.01 - 2026.03" },
+          { "label": "360环评及绩效截止", "value": "2026.03.25" },
+          { "label": "待评项目数", "value": "6 个" },
+          { "label": "评审截止提醒", "value": "请于 2026.03.24 前提交评审意见" }
+        ]
+      },
+      "projectMember": {
+        "roleLabel": "项目负责人",
+        "summary": "负责维护最终版本评审材料，并完成项目相关 360 环评与绩效反馈。",
+        "primaryAction": "更新评审材料",
+        "primaryRoute": "/project-member/my-projects",
+        "dangerAction": "",
+        "focusItems": ["审计合规", "材料更新", "360 环评"],
+        "metrics": [
+          { "label": "评审周期", "value": "2026.03.10 - 2026.03.24" },
+          { "label": "项目考核周期", "value": "2026.01 - 2026.03" },
+          { "label": "360环评及绩效截止", "value": "2026.03.25" }
+        ],
+        "notice": {
+          "title": "审计合规提示",
+          "content": "为保证审计合规，请及时更新最终版本评审材料",
+          "action": "更新评审材料"
+        }
+      }
+    }
+  },
+  "history": [
+    {
+      "id": "QRM-2025-Q4",
+      "year": "2025",
+      "name": "2025年度评审第4季度会",
+      "reviewPeriod": "2025.12.10 - 2025.12.24",
+      "projectAssessmentPeriod": "2025.09 - 2025.12",
+      "facultyCount": 3,
+      "directionCount": 12,
+      "projectCount": 15,
+      "reviewRecorder": "董超",
+      "reviewApplicant": "赵欣欣",
+      "announcementPublisher": "董超",
+      "announcementAuditor": "施欣欣",
+      "status": "已完成"
+    },
+    {
+      "id": "QRM-2025-Q3",
+      "year": "2025",
+      "name": "2025年度评审第3季度会",
+      "reviewPeriod": "2025.09.10 - 2025.09.24",
+      "projectAssessmentPeriod": "2025.06 - 2025.09",
+      "facultyCount": 3,
+      "directionCount": 12,
+      "projectCount": 15,
+      "reviewRecorder": "董超",
+      "reviewApplicant": "赵欣欣",
+      "announcementPublisher": "董超",
+      "announcementAuditor": "施欣欣",
+      "status": "已完成"
+    },
+    {
+      "id": "QRM-2025-Q2",
+      "year": "2025",
+      "name": "2025年度评审第2季度会",
+      "reviewPeriod": "2025.06.10 - 2025.06.24",
+      "projectAssessmentPeriod": "2025.03 - 2025.06",
+      "facultyCount": 3,
+      "directionCount": 12,
+      "projectCount": 15,
+      "reviewRecorder": "董超",
+      "reviewApplicant": "赵欣欣",
+      "announcementPublisher": "董超",
+      "announcementAuditor": "施欣欣",
+      "status": "已完成"
+    },
+    {
+      "id": "QRM-2025-Q1",
+      "year": "2025",
+      "name": "2025年度评审第1季度会",
+      "reviewPeriod": "2025.03.10 - 2025.03.24",
+      "projectAssessmentPeriod": "2025.01 - 2025.03",
+      "facultyCount": 3,
+      "directionCount": 12,
+      "projectCount": 15,
+      "reviewRecorder": "董超",
+      "reviewApplicant": "赵欣欣",
+      "announcementPublisher": "董超",
+      "announcementAuditor": "施欣欣",
+      "status": "已完成"
+    },
+    {
+      "id": "QRM-2024-Q4",
+      "year": "2024",
+      "name": "2024年度评审第4季度会",
+      "reviewPeriod": "2024.12.10 - 2024.12.24",
+      "projectAssessmentPeriod": "2024.09 - 2024.12",
+      "facultyCount": 3,
+      "directionCount": 12,
+      "projectCount": 15,
+      "reviewRecorder": "董超",
+      "reviewApplicant": "赵欣欣",
+      "announcementPublisher": "董超",
+      "announcementAuditor": "施欣欣",
+      "status": "已归档"
+    }
+  ]
+}

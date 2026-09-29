@@ -1,0 +1,216 @@
+[
+  {
+    "id": "u001",
+    "username": "ky_admin",
+    "password": "123456",
+    "displayName": "张晓明",
+    "avatar": "img/zyh.png",
+    "department": "科研管理办公室",
+    "roles": [
+      {
+        "key": "researchProjectAdmin",
+        "name": "科研项目管理员",
+        "englishName": "Research Project Administrator",
+        "routeName": "research-project-admin"
+      },
+       {
+        "key": "researchDepartmentLeader",
+        "name": "科研部负责人",
+        "englishName": "Research Department Leader",
+        "routeName": "research-dept-leader"
+      }
+    ]
+  },
+  {
+    "id": "u002",
+    "username": "research_leader",
+    "password": "123456",
+    "displayName": "李主任",
+    "avatar": "img/zyh.png",
+    "department": "科研部",
+    "roles": [
+      {
+        "key": "researchDepartmentLeader",
+        "name": "科研部负责人",
+        "englishName": "Research Department Leader",
+        "routeName": "research-dept-leader"
+      }
+    ]
+  },
+  {
+    "id": "u003",
+    "username": "faculty_leader",
+    "password": "123456",
+    "displayName": "陈教授",
+    "avatar": "img/zyh.png",
+    "department": "AI&IT 学部",
+    "roles": [
+      {
+        "key": "facultyLeader",
+        "name": "学部负责人",
+        "englishName": "Faculty Leader",
+        "routeName": "faculty-leader"
+      }
+    ]
+  },
+  {
+    "id": "u004",
+    "username": "project_leader",
+    "password": "123456",
+    "displayName": "王老师",
+    "avatar": "img/zyh.png",
+    "department": "智能医学工程团队",
+    "roles": [
+      {
+        "key": "projectLeader",
+        "name": "子方向负责人",
+        "englishName": "Sub-direction Leader",
+        "routeName": "sub-direction-leader"
+      }
+    ]
+  },
+  {
+    "id": "u005",
+    "username": "reviewer",
+    "password": "123456",
+    "displayName": "刘评委",
+    "avatar": "img/zyh.png",
+    "department": "专家委员会",
+    "roles": [
+      {
+        "key": "reviewer",
+        "name": "评委",
+        "englishName": "Review Judge",
+        "routeName": "review-judge"
+      }
+    ]
+  },
+  {
+    "id": "u006",
+    "username": "member",
+    "password": "123456",
+    "displayName": "赵同学",
+    "avatar": "img/zyh.png",
+    "department": "项目组成员",
+    "roles": [
+      {
+        "key": "projectMember",
+        "name": "项目负责人",
+        "englishName": "Project Member",
+        "routeName": "project-member"
+      }
+    ]
+  },
+  {
+    "id": "u009",
+    "username": "project_student",
+    "password": "123456",
+    "displayName": "林思远",
+    "avatar": "img/zyh.png",
+    "department": "北京中关村学院",
+    "roles": [
+      {
+        "key": "projectStudent",
+        "name": "项目学生",
+        "englishName": "Project Student",
+        "routeName": "project-student"
+      }
+    ]
+  },
+  {
+    "id": "u010",
+    "username": "project_mentor",
+    "password": "123456",
+    "displayName": "陈知行",
+    "avatar": "img/zyh.png",
+    "department": "中关村人工智能研究院",
+    "roles": [
+      {
+        "key": "projectMentor",
+        "name": "项目导师",
+        "englishName": "Project Mentor",
+        "routeName": "project-mentor"
+      }
+    ]
+  },
+  {
+    "id": "u007",
+    "username": "dual_admin",
+    "password": "123456",
+    "displayName": "周主任",
+    "avatar": "img/zyh.png",
+    "department": "科研部",
+    "roles": [
+      {
+        "key": "researchProjectAdmin",
+        "name": "科研项目管理员",
+        "englishName": "Research Project Administrator",
+        "routeName": "research-project-admin"
+      },
+      {
+        "key": "researchDepartmentLeader",
+        "name": "科研部负责人",
+        "englishName": "Research Department Leader",
+        "routeName": "research-dept-leader"
+      }
+    ]
+  },
+  {
+    "id": "u008",
+    "username": "ky_system",
+    "password": "123456",
+    "displayName": "系统测试账号",
+    "avatar": "img/zyh.png",
+    "department": "开发测试",
+    "roles": [
+      {
+        "key": "researchProjectAdmin",
+        "name": "科研项目管理员",
+        "englishName": "Research Project Administrator",
+        "routeName": "research-project-admin"
+      },
+      {
+        "key": "researchDepartmentLeader",
+        "name": "科研部负责人",
+        "englishName": "Research Department Leader",
+        "routeName": "research-dept-leader"
+      },
+      {
+        "key": "facultyLeader",
+        "name": "学部负责人",
+        "englishName": "Faculty Leader",
+        "routeName": "faculty-leader"
+      },
+      {
+        "key": "projectLeader",
+        "name": "子方向负责人",
+        "englishName": "Sub-direction Leader",
+        "routeName": "sub-direction-leader"
+      },
+      {
+        "key": "reviewer",
+        "name": "评委",
+        "englishName": "Review Judge",
+        "routeName": "review-judge"
+      },
+      {
+        "key": "projectMember",
+        "name": "项目负责人",
+        "englishName": "Project Member",
+        "routeName": "project-member"
+      },
+      {
+        "key": "projectStudent",
+        "name": "项目学生",
+        "englishName": "Project Student",
+        "routeName": "project-student"
+      },
+      {
+        "key": "projectMentor",
+        "name": "项目导师",
+        "englishName": "Project Mentor",
+        "routeName": "project-mentor"
+      }
+    ]
+  }
+]

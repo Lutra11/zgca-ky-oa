@@ -1,0 +1,879 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>季度评审会角色视角原型</title>
+  <style>
+    :root {
+      --blue: #1f6fff;
+      --blue-soft: #eef6ff;
+      --green: #18a058;
+      --green-soft: #eaf8f0;
+      --red: #ef4444;
+      --text: #172033;
+      --muted: #6b7280;
+      --line: rgba(29, 29, 31, 0.08);
+      --shadow: 0 16px 42px rgba(26, 39, 68, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(31, 111, 255, 0.12), transparent 28%),
+        linear-gradient(180deg, #fbfdff 0%, #f5f7fb 100%);
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    .page {
+      width: min(1440px, calc(100vw - 48px));
+      margin: 0 auto;
+      padding: 24px 0 36px;
+    }
+
+    .topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .breadcrumb {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 12px;
+      color: #526071;
+      background: rgba(255, 255, 255, 0.76);
+      box-shadow: 0 10px 26px rgba(26, 39, 68, 0.04);
+      font-size: 13px;
+      font-weight: 720;
+    }
+
+    .breadcrumb strong {
+      color: var(--blue);
+    }
+
+    .demo-chip {
+      border: 1px solid rgba(31, 111, 255, 0.14);
+      border-radius: 999px;
+      padding: 8px 12px;
+      color: var(--blue);
+      background: rgba(238, 246, 255, 0.86);
+      font-size: 13px;
+      font-weight: 760;
+    }
+
+    .role-strip,
+    .feature-dock,
+    .current-card,
+    .history-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .role-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 14px;
+      padding: 12px 14px 12px 18px;
+    }
+
+    .role-context {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 176px;
+    }
+
+    .role-context span {
+      color: #8a94a6;
+      font-size: 13px;
+      font-weight: 720;
+    }
+
+    .role-context strong {
+      color: #0f172a;
+      font-size: 15px;
+      font-weight: 860;
+    }
+
+    .role-switcher {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .role-switch-button {
+      min-height: 34px;
+      border: 1px solid rgba(31, 111, 255, 0.12);
+      border-radius: 8px;
+      padding: 0 16px;
+      color: #5f6b7a;
+      background: rgba(255, 255, 255, 0.74);
+      font-size: 13px;
+      font-weight: 760;
+      cursor: pointer;
+      transition: color 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .role-switch-button:hover {
+      border-color: rgba(31, 111, 255, 0.26);
+      color: #1f2937;
+      background: #fff;
+    }
+
+    .role-switch-button.is-active {
+      border-color: rgba(31, 111, 255, 0.34);
+      color: var(--blue);
+      background: var(--blue-soft);
+      box-shadow: 0 6px 16px rgba(31, 111, 255, 0.08);
+    }
+
+    .feature-dock {
+      margin-bottom: 14px;
+      padding: 18px 20px;
+      overflow-x: auto;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .section-title h2 {
+      margin: 0;
+      color: #0f172a;
+      font-size: 18px;
+      font-weight: 860;
+    }
+
+    .section-title span {
+      color: #7b8494;
+      font-size: 13px;
+      font-weight: 680;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      min-width: 880px;
+    }
+
+    .feature-button {
+      display: grid;
+      grid-template-columns: 48px minmax(0, 1fr) 18px;
+      gap: 14px;
+      align-items: center;
+      height: 74px;
+      border: 1px solid rgba(31, 111, 255, 0.11);
+      border-radius: 8px;
+      padding: 14px;
+      color: #172033;
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88), 0 8px 18px rgba(26, 39, 68, 0.035);
+      cursor: default;
+      text-align: left;
+    }
+
+    .feature-icon,
+    .metric-icon,
+    .notice-icon {
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      color: var(--blue);
+      background: linear-gradient(145deg, #eaf4ff, #f6fbff);
+      font-weight: 860;
+    }
+
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      font-size: 17px;
+    }
+
+    .feature-body {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .feature-body strong,
+    .feature-body small {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .feature-body strong {
+      font-size: 15px;
+      font-weight: 850;
+    }
+
+    .feature-body small {
+      color: #6b7280;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .feature-arrow {
+      color: #9aa4b2;
+      font-size: 18px;
+    }
+
+    .current-card {
+      height: 420px;
+      margin-bottom: 18px;
+      padding: 26px 30px;
+      overflow: hidden;
+    }
+
+    .current-panel {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .current-topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .status-block {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    .status-tag {
+      flex: 0 0 auto;
+      border: 1px solid rgba(24, 160, 88, 0.22);
+      border-radius: 8px;
+      padding: 7px 11px;
+      color: #128044;
+      background: var(--green-soft);
+      font-size: 13px;
+      font-weight: 820;
+    }
+
+    .status-block h1 {
+      margin: 0 0 6px;
+      overflow: hidden;
+      color: #1d1d1f;
+      font-size: 20px;
+      font-weight: 880;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .status-block p {
+      margin: 0;
+      color: #6e6e73;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .primary-action {
+      min-height: 38px;
+      border: 0;
+      border-radius: 10px;
+      padding: 0 18px;
+      color: #fff;
+      background: linear-gradient(180deg, #2f7dff, #1262ee);
+      box-shadow: 0 10px 22px rgba(31, 111, 255, 0.22);
+      font-size: 14px;
+      font-weight: 800;
+      cursor: default;
+    }
+
+    .divider {
+      height: 1px;
+      margin: 18px 0;
+      background: var(--line);
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 18px 24px;
+    }
+
+    .metric-item {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      min-height: 58px;
+      opacity: 1;
+      transition: opacity 0.1s ease;
+    }
+
+    .metric-item.is-hidden {
+      visibility: hidden;
+      opacity: 0;
+    }
+
+    .metric-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 9px;
+      color: #5f6b7a;
+      background: #f3f7fc;
+      font-size: 14px;
+    }
+
+    .metric-item p,
+    .metric-item strong {
+      margin: 0;
+    }
+
+    .metric-item p {
+      color: #6e6e73;
+      font-size: 13px;
+      font-weight: 720;
+    }
+
+    .metric-item strong {
+      display: block;
+      margin-top: 5px;
+      overflow: hidden;
+      color: #0f172a;
+      font-size: 15px;
+      font-weight: 860;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .notice-shell {
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      min-height: 74px;
+      margin-top: 18px;
+      border: 1px solid rgba(31, 111, 255, 0.12);
+      border-radius: 12px;
+      padding: 16px;
+      background: linear-gradient(135deg, #f4f9ff, #fff);
+    }
+
+    .notice-shell.is-empty {
+      visibility: hidden;
+      opacity: 0;
+    }
+
+    .notice-icon {
+      width: 38px;
+      height: 38px;
+      font-size: 15px;
+    }
+
+    .notice-content strong {
+      display: block;
+      color: #0f172a;
+      font-size: 15px;
+      font-weight: 840;
+    }
+
+    .notice-content p {
+      margin: 5px 0 0;
+      color: #5f6b7a;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .notice-action {
+      border: 1px solid rgba(31, 111, 255, 0.28);
+      border-radius: 10px;
+      padding: 9px 14px;
+      color: var(--blue);
+      background: #fff;
+      font-size: 13px;
+      font-weight: 780;
+    }
+
+    .history-card {
+      overflow: hidden;
+    }
+
+    .history-header {
+      padding: 18px 22px 14px;
+    }
+
+    .history-header h2,
+    .history-header p {
+      margin: 0;
+    }
+
+    .history-header h2 {
+      color: #0f172a;
+      font-size: 18px;
+      font-weight: 840;
+    }
+
+    .history-header p {
+      margin-top: 6px;
+      color: #6e6e73;
+      font-size: 14px;
+    }
+
+    .filter-bar {
+      display: grid;
+      grid-template-columns: 180px minmax(260px, 1fr) auto auto;
+      gap: 12px;
+      align-items: center;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 14px 22px;
+      background: #f8fbff;
+    }
+
+    .filter-bar select,
+    .filter-bar input {
+      min-height: 38px;
+      border: 1px solid rgba(31, 111, 255, 0.12);
+      border-radius: 10px;
+      padding: 0 12px;
+      color: #172033;
+      background: #fff;
+      outline: none;
+    }
+
+    .filter-bar button {
+      min-height: 38px;
+      border-radius: 10px;
+      padding: 0 18px;
+      font-size: 14px;
+      font-weight: 780;
+    }
+
+    .query-button {
+      border: 0;
+      color: #fff;
+      background: var(--blue);
+    }
+
+    .reset-button {
+      border: 1px solid var(--line);
+      color: #526071;
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 13px;
+    }
+
+    thead th {
+      height: 44px;
+      padding: 0 12px;
+      color: #fff;
+      background: #1262ee;
+      text-align: left;
+      font-weight: 820;
+    }
+
+    tbody td {
+      height: 48px;
+      border-bottom: 1px solid rgba(29, 29, 31, 0.06);
+      padding: 0 12px;
+      color: #1f2937;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    tbody tr:hover td {
+      background: #f3f8ff;
+    }
+
+    .link-text {
+      color: var(--blue);
+      font-weight: 760;
+    }
+
+    .state-tag {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 9px;
+      color: #128044;
+      background: var(--green-soft);
+      font-size: 12px;
+      font-weight: 780;
+    }
+
+    .toast {
+      position: fixed;
+      right: 28px;
+      bottom: 28px;
+      transform: translateY(16px);
+      border: 1px solid rgba(31, 111, 255, 0.14);
+      border-radius: 10px;
+      padding: 11px 14px;
+      color: #1f2937;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 14px 36px rgba(26, 39, 68, 0.12);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.16s ease, transform 0.16s ease;
+      font-size: 13px;
+      font-weight: 740;
+    }
+
+    .toast.is-visible {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    @media (max-width: 980px) {
+      .page {
+        width: min(100vw - 28px, 920px);
+      }
+
+      .role-strip,
+      .current-topline {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .metric-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .filter-bar {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="topline">
+      <div class="breadcrumb">评委 <span>/</span> <strong>季度评审会</strong></div>
+      <div class="demo-chip">乙方沟通演示 · 单页原型</div>
+    </div>
+
+    <section class="role-strip" aria-label="角色视角切换">
+      <div class="role-context">
+        <span>当前身份</span>
+        <strong id="currentRoleLabel">评委</strong>
+      </div>
+      <div id="roleSwitcher" class="role-switcher"></div>
+    </section>
+
+    <section class="feature-dock" aria-label="常用功能">
+      <header class="section-title">
+        <h2>常用功能</h2>
+        <span>按钮仅用于展示当前身份可见操作，不执行跳转</span>
+      </header>
+      <div id="featureGrid" class="feature-grid"></div>
+    </section>
+
+    <article class="current-card" aria-label="当前季度评审会">
+      <div class="current-panel">
+        <div class="current-topline">
+          <div class="status-block">
+            <span class="status-tag">评审过程中</span>
+            <div>
+              <h1>2026年度第一季度评审会</h1>
+              <p id="roleSummary">负责查看待评项目、提交评审意见和评审结果。</p>
+            </div>
+          </div>
+          <button id="primaryAction" class="primary-action" type="button">进入项目评审</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <section id="metricGrid" class="metric-grid" aria-label="季度评审会信息"></section>
+
+        <section id="noticeShell" class="notice-shell is-empty" aria-label="角色提示">
+          <span class="notice-icon">文</span>
+          <div class="notice-content">
+            <strong id="noticeTitle"></strong>
+            <p id="noticeContent"></p>
+          </div>
+          <button id="noticeAction" class="notice-action" type="button"></button>
+        </section>
+      </div>
+    </article>
+
+    <article class="history-card" aria-label="历次评审">
+      <header class="history-header">
+        <h2>历次评审</h2>
+        <p>用于展示同一季度评审会模块下的历史记录结构</p>
+      </header>
+      <section class="filter-bar">
+        <select aria-label="年份筛选">
+          <option>全部年份</option>
+          <option>2025</option>
+          <option>2024</option>
+        </select>
+        <input aria-label="评审名称" placeholder="请输入评审名称" />
+        <button class="query-button" type="button">查询</button>
+        <button class="reset-button" type="button">重置</button>
+      </section>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:70px;">序号</th>
+            <th style="width:230px;">评审名称</th>
+            <th style="width:180px;">评审周期</th>
+            <th style="width:170px;">项目考评周期</th>
+            <th style="width:110px;">参评学部数</th>
+            <th style="width:120px;">参评子方向数</th>
+            <th style="width:110px;">参评项目数</th>
+            <th style="width:110px;">评审登记人</th>
+            <th style="width:110px;">公告审核人</th>
+            <th style="width:100px;">状态</th>
+          </tr>
+        </thead>
+        <tbody id="historyRows"></tbody>
+      </table>
+    </article>
+  </main>
+
+  <div id="toast" class="toast">原型展示：按钮暂不跳转</div>
+
+  <script>
+    const roleOrder = ['facultyLeader', 'projectLeader', 'reviewer', 'projectMember'];
+
+    const roleViews = {
+      facultyLeader: {
+        roleLabel: '学部负责人',
+        summary: '负责本学部材料提交、成果维护与评审结果确认。',
+        primaryAction: '查看材料提交',
+        features: [
+          ['评审材料提交', '提交评审材料', '材'],
+          ['材料成果维护', '维护材料成果', '果'],
+          ['评审结果', '查看评审结果', '结'],
+          ['公告查看', '查看评审公告', '告'],
+        ],
+        metrics: [
+          ['评审周期', '2026.03.10 - 2026.03.24'],
+          ['项目考核周期', '2026.01 - 2026.03'],
+          ['360环评及绩效截止', '2026.03.25'],
+          ['参评项目数', '15 个'],
+          ['参评子方向数', '12 个'],
+        ],
+      },
+      projectLeader: {
+        roleLabel: '子方向负责人',
+        summary: '负责完善本子方向评审信息、指定评委和评审时间。',
+        primaryAction: '完善评审信息',
+        features: [
+          ['评审管理', '配置评委与时间', '审'],
+          ['项目评审', '查看本方向项目', '项'],
+          ['评审结果', '查看结果反馈', '结'],
+          ['公告查看', '查看评审公告', '告'],
+        ],
+        metrics: [
+          ['评审周期', '2026.03.10 - 2026.03.24'],
+          ['项目考核周期', '2026.01 - 2026.03'],
+          ['360环评及绩效截止', '2026.03.25'],
+          ['参评项目数', '15 个'],
+          ['审批状态', '待完善'],
+        ],
+      },
+      reviewer: {
+        roleLabel: '评委',
+        summary: '负责查看待评项目、提交评审意见和评审结果。',
+        primaryAction: '进入项目评审',
+        features: [
+          ['项目评审', '处理待评项目', '评'],
+          ['评审结果', '查看已提交结果', '结'],
+          ['评审材料', '查看项目材料', '材'],
+          ['消息通知', '查看提醒消息', '通'],
+        ],
+        metrics: [
+          ['评审周期', '2026.03.10 - 2026.03.24'],
+          ['项目考核周期', '2026.01 - 2026.03'],
+          ['360环评及绩效截止', '2026.03.25'],
+          ['待评项目数', '6 个'],
+          ['评审截止提醒', '请于 2026.03.24 前提交评审意见'],
+        ],
+      },
+      projectMember: {
+        roleLabel: '项目负责人',
+        summary: '负责维护最终版本评审材料，并完成项目相关 360 环评与绩效反馈。',
+        primaryAction: '更新评审材料',
+        features: [
+          ['我的项目', '查看项目材料', '项'],
+          ['360 环评', '填写环评反馈', '环'],
+          ['材料维护', '更新最终版本', '材'],
+          ['公告查看', '查看评审公告', '告'],
+        ],
+        metrics: [
+          ['评审周期', '2026.03.10 - 2026.03.24'],
+          ['项目考核周期', '2026.01 - 2026.03'],
+          ['360环评及绩效截止', '2026.03.25'],
+        ],
+        notice: {
+          title: '审计合规提示',
+          content: '为保证审计合规，请及时更新最终版本评审材料',
+          action: '更新评审材料',
+        },
+      },
+    };
+
+    const metricSlots = [
+      { key: 'review-period', labels: ['评审周期'], icon: '期' },
+      { key: 'assessment-period', labels: ['项目考核周期'], icon: '考' },
+      { key: 'deadline', labels: ['360环评及绩效截止'], icon: '止' },
+      { key: 'project-count', labels: ['参评项目数', '待评项目数'], icon: '项' },
+      { key: 'direction-count', labels: ['参评子方向数'], icon: '向' },
+      { key: 'faculty-count', labels: ['参评学部数'], icon: '部' },
+      { key: 'approval-status', labels: ['审批状态'], icon: '批' },
+      { key: 'review-reminder', labels: ['评审截止提醒'], icon: '醒' },
+    ];
+
+    const history = [
+      ['1', '2025年度评审第4季度会', '2025.12.10 - 2025.12.24', '2025.09 - 2025.12', '3', '12', '15', '董超', '施欣欣', '已完成'],
+      ['2', '2025年度评审第3季度会', '2025.09.10 - 2025.09.24', '2025.06 - 2025.09', '3', '12', '15', '董超', '施欣欣', '已完成'],
+      ['3', '2025年度评审第2季度会', '2025.06.10 - 2025.06.24', '2025.03 - 2025.06', '3', '12', '15', '董超', '施欣欣', '已完成'],
+      ['4', '2025年度评审第1季度会', '2025.03.10 - 2025.03.24', '2025.01 - 2025.03', '3', '12', '15', '董超', '施欣欣', '已完成'],
+      ['5', '2024年度评审第4季度会', '2024.12.10 - 2024.12.24', '2024.09 - 2024.12', '3', '12', '15', '董超', '施欣欣', '已归档'],
+    ];
+
+    let activeRole = 'reviewer';
+    let toastTimer = 0;
+
+    function metricForSlot(view, slot) {
+      return slot.labels
+        .map((label) => view.metrics.find((metric) => metric[0] === label))
+        .find(Boolean);
+    }
+
+    function showToast() {
+      const toast = document.getElementById('toast');
+      window.clearTimeout(toastTimer);
+      toast.classList.add('is-visible');
+      toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 1600);
+    }
+
+    function renderRoleSwitcher() {
+      const switcher = document.getElementById('roleSwitcher');
+      switcher.innerHTML = roleOrder.map((key) => {
+        const active = key === activeRole ? ' is-active' : '';
+        return `<button class="role-switch-button${active}" type="button" data-role="${key}">${roleViews[key].roleLabel}</button>`;
+      }).join('');
+
+      switcher.querySelectorAll('button').forEach((button) => {
+        button.addEventListener('click', () => {
+          activeRole = button.dataset.role;
+          render();
+        });
+      });
+    }
+
+    function renderFeatures(view) {
+      const grid = document.getElementById('featureGrid');
+      grid.innerHTML = view.features.map(([name, desc, icon]) => `
+        <button class="feature-button" type="button" aria-label="${name}">
+          <span class="feature-icon">${icon}</span>
+          <span class="feature-body"><strong>${name}</strong><small>${desc}</small></span>
+          <span class="feature-arrow">›</span>
+        </button>
+      `).join('');
+      grid.querySelectorAll('button').forEach((button) => button.addEventListener('click', showToast));
+    }
+
+    function renderMetrics(view) {
+      const grid = document.getElementById('metricGrid');
+      grid.innerHTML = metricSlots.map((slot) => {
+        const metric = metricForSlot(view, slot);
+        const label = metric ? metric[0] : slot.labels[0];
+        const value = metric ? metric[1] : '';
+        const hidden = metric ? '' : ' is-hidden';
+        return `
+          <article class="metric-item${hidden}" aria-hidden="${metric ? 'false' : 'true'}">
+            <span class="metric-icon">${slot.icon}</span>
+            <div><p>${label}</p><strong title="${value}">${value}</strong></div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function renderNotice(view) {
+      const shell = document.getElementById('noticeShell');
+      if (!view.notice) {
+        shell.classList.add('is-empty');
+        document.getElementById('noticeTitle').textContent = '';
+        document.getElementById('noticeContent').textContent = '';
+        document.getElementById('noticeAction').textContent = '';
+        return;
+      }
+
+      shell.classList.remove('is-empty');
+      document.getElementById('noticeTitle').textContent = view.notice.title;
+      document.getElementById('noticeContent').textContent = view.notice.content;
+      document.getElementById('noticeAction').textContent = view.notice.action;
+    }
+
+    function renderHistory() {
+      document.getElementById('historyRows').innerHTML = history.map((row) => `
+        <tr>
+          <td>${row[0]}</td>
+          <td><span class="link-text">${row[1]}</span></td>
+          <td>${row[2]}</td>
+          <td>${row[3]}</td>
+          <td>${row[4]}</td>
+          <td>${row[5]}</td>
+          <td>${row[6]}</td>
+          <td>${row[7]}</td>
+          <td>${row[8]}</td>
+          <td><span class="state-tag">${row[9]}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    function render() {
+      const view = roleViews[activeRole];
+      document.getElementById('currentRoleLabel').textContent = view.roleLabel;
+      document.getElementById('roleSummary').textContent = view.summary;
+      document.getElementById('primaryAction').textContent = view.primaryAction;
+      renderRoleSwitcher();
+      renderFeatures(view);
+      renderMetrics(view);
+      renderNotice(view);
+    }
+
+    document.getElementById('primaryAction').addEventListener('click', showToast);
+    document.getElementById('noticeAction').addEventListener('click', showToast);
+    document.querySelectorAll('.filter-bar button').forEach((button) => button.addEventListener('click', showToast));
+    renderHistory();
+    render();
+  </script>
+</body>
+</html>

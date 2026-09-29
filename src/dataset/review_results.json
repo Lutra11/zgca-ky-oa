@@ -1,0 +1,143 @@
+[
+  {
+    "faculty": "AI&IT学部",
+    "status": "评审已完成",
+    "submittedAt": "2026-03-24 16:30:00",
+    "summary": "AI&IT学部本季度整体表现优异，各项目进展顺利，技术创新能力强，团队协作良好。建议继续加大对A级项目的支持力度，同时关注B级项目的改进提升。",
+    "projects": [
+      {
+        "id": "rr-001",
+        "projectCode": "AI4S-2024-001",
+        "projectName": "大规模预训练模型优化技术研究",
+        "principal": "陈静",
+        "subDirection": "人工智能",
+        "score": 90,
+        "recommendedLevel": "A",
+        "finalLevel": "A",
+        "subDirectionComment": "项目在大模型优化方面取得重要突破，技术创新性强。",
+        "facultyComment": "该项目技术路线清晰，成果显著，建议继续深化研究。",
+        "adjustReason": ""
+      },
+      {
+        "id": "rr-002",
+        "projectCode": "AI4S-2024-003",
+        "projectName": "多模态融合感知系统",
+        "principal": "赵敏",
+        "subDirection": "人工智能",
+        "score": 86,
+        "recommendedLevel": "A",
+        "finalLevel": "B",
+        "subDirectionComment": "多模态融合技术创新，应用场景丰富。",
+        "facultyComment": "项目应用前景广阔，但需进一步优化算法性能，调整为B级更合理。",
+        "adjustReason": "综合专家意见，项目应用验证仍需加强。"
+      },
+      {
+        "id": "rr-003",
+        "projectCode": "AI4S-2024-006",
+        "projectName": "联邦学习安全增强机制",
+        "principal": "孙浩",
+        "subDirection": "人工智能",
+        "score": 83,
+        "recommendedLevel": "C",
+        "finalLevel": "B",
+        "subDirectionComment": "安全机制设计合理，但落地实验仍需补充。",
+        "facultyComment": "安全性研究方向正确，增加场景应用验证。",
+        "adjustReason": "考虑研究方向战略价值，最终评级上调。"
+      },
+      {
+        "id": "rr-004",
+        "projectCode": "INFO-2024-001",
+        "projectName": "分布式系统容错技术研究",
+        "principal": "李华",
+        "subDirection": "信息技术",
+        "score": 88,
+        "recommendedLevel": "A",
+        "finalLevel": "A",
+        "subDirectionComment": "容错机制设计完善，实验验证充分。",
+        "facultyComment": "项目具有创新性，建议加强与工业界合作。",
+        "adjustReason": ""
+      },
+      {
+        "id": "rr-005",
+        "projectCode": "INFO-2024-002",
+        "projectName": "云原生应用性能优化平台",
+        "principal": "王强",
+        "subDirection": "信息技术",
+        "score": 84,
+        "recommendedLevel": "B",
+        "finalLevel": "B",
+        "subDirectionComment": "性能优化效果明显，但需进一步扩大应用范围。",
+        "facultyComment": "平台设计合理，建议增加更多应用场景。",
+        "adjustReason": ""
+      }
+    ]
+  },
+  {
+    "faculty": "生命科学学部",
+    "status": "评审已完成",
+    "submittedAt": "2026-03-24 15:45:00",
+    "summary": "生命科学学部项目完成度较高，重点项目成果质量稳定，建议加强交叉学科项目的资源协调。",
+    "projects": [
+      {
+        "id": "rr-006",
+        "projectCode": "LIFE-2024-002",
+        "projectName": "基因编辑效率提升关键技术研究",
+        "principal": "刘洋",
+        "subDirection": "基因组学",
+        "score": 91,
+        "recommendedLevel": "A",
+        "finalLevel": "A",
+        "subDirectionComment": "技术路线成熟，阶段成果扎实。",
+        "facultyComment": "建议继续支持后续验证与成果转化。",
+        "adjustReason": ""
+      },
+      {
+        "id": "rr-007",
+        "projectCode": "LIFE-2024-004",
+        "projectName": "蛋白质结构预测与功能解析",
+        "principal": "陈晨",
+        "subDirection": "结构生物学",
+        "score": 82,
+        "recommendedLevel": "B",
+        "finalLevel": "B",
+        "subDirectionComment": "研究基础较好，成果表达需进一步完善。",
+        "facultyComment": "建议强化论文产出与数据复核。",
+        "adjustReason": ""
+      }
+    ]
+  },
+  {
+    "faculty": "能源与环境学部",
+    "status": "评审已完成",
+    "submittedAt": "2026-03-24 17:10:00",
+    "summary": "能源与环境学部项目整体风险可控，应用价值明确，建议提升过程材料提交及时性。",
+    "projects": [
+      {
+        "id": "rr-008",
+        "projectCode": "EARTH-2024-001",
+        "projectName": "城市水体污染溯源与生态修复技术集成研究",
+        "principal": "罗青",
+        "subDirection": "环境科学",
+        "score": 78,
+        "recommendedLevel": "C",
+        "finalLevel": "C",
+        "subDirectionComment": "项目进展基本符合预期，应用验证仍需补充。",
+        "facultyComment": "建议明确下一阶段示范应用计划。",
+        "adjustReason": ""
+      },
+      {
+        "id": "rr-009",
+        "projectCode": "ENERGY-2024-002",
+        "projectName": "新能源材料界面调控与性能提升研究",
+        "principal": "孙丽娜",
+        "subDirection": "能源科学",
+        "score": 73,
+        "recommendedLevel": "D",
+        "finalLevel": "D",
+        "subDirectionComment": "阶段成果不足，需要补充关键实验。",
+        "facultyComment": "建议限期整改并强化过程跟踪。",
+        "adjustReason": ""
+      }
+    ]
+  }
+]

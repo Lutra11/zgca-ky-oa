@@ -1,0 +1,127 @@
+[
+  {
+    "id": "RA20260301001",
+    "reviewName": "2026年第一季度推进会",
+    "initiator": "刘海广",
+    "initiatedAt": "2026-03-01 09:18",
+    "status": "pending",
+    "reviewPeriod": ["2026-03-02 09:00", "2026-03-23 18:00"],
+    "performancePeriod": ["2026-03-02 09:00", "2026-03-23 18:00"],
+    "reviewTemplateId": "tpl-review-001",
+    "noticeTemplateId": "tpl-notice-001",
+    "rejectReason": "",
+    "approver": "",
+    "approvedAt": "",
+    "projects": [
+      {
+        "id": "rp-001",
+        "projectCode": "C20250202",
+        "projectType": "基础培育类",
+        "faculty": "AI4S",
+        "subDirection": "生命科学",
+        "subDirectionLeader": "刘海广",
+        "batch": "第一批",
+        "projectName": "乳腺肿瘤智能影像手术系统及关键技术研究",
+        "principal": "张海雅"
+      },
+      {
+        "id": "rp-002",
+        "projectCode": "C20250203",
+        "projectType": "自由探索类",
+        "faculty": "AI4S",
+        "subDirection": "生命科学",
+        "subDirectionLeader": "刘海广",
+        "batch": "第一批",
+        "projectName": "多模态医学知识图谱辅助诊疗关键技术研究",
+        "principal": "陈思远"
+      },
+      {
+        "id": "rp-003",
+        "projectCode": "C20250204",
+        "projectType": "基础培育类",
+        "faculty": "AI4S",
+        "subDirection": "人工智能",
+        "subDirectionLeader": "赵工程师",
+        "batch": "第一批",
+        "projectName": "跨尺度生命科学大模型推理与安全应用研究",
+        "principal": "王教授"
+      }
+    ]
+  },
+  {
+    "id": "RA20260301002",
+    "reviewName": "AI与医疗创新项目评审会",
+    "initiator": "张瑞雅",
+    "initiatedAt": "2026-03-01 10:32",
+    "status": "pending",
+    "reviewPeriod": ["2026-03-05 09:00", "2026-03-24 18:00"],
+    "performancePeriod": ["2026-03-05 09:00", "2026-03-24 18:00"],
+    "reviewTemplateId": "tpl-review-002",
+    "noticeTemplateId": "tpl-notice-001",
+    "rejectReason": "",
+    "approver": "",
+    "approvedAt": "",
+    "projects": [
+      {
+        "id": "rp-004",
+        "projectCode": "AI4S-2024-001",
+        "projectType": "重点科研项目",
+        "faculty": "AI&IT学部",
+        "subDirection": "人工智能",
+        "subDirectionLeader": "马博士",
+        "batch": "第二批",
+        "projectName": "大规模预训练模型优化技术研究",
+        "principal": "陈静"
+      },
+      {
+        "id": "rp-005",
+        "projectCode": "AI4S-2024-003",
+        "projectType": "基础培育类",
+        "faculty": "AI&IT学部",
+        "subDirection": "人工智能",
+        "subDirectionLeader": "马博士",
+        "batch": "第二批",
+        "projectName": "多模态融合感知系统",
+        "principal": "赵敏"
+      }
+    ]
+  },
+  {
+    "id": "RA20260302001",
+    "reviewName": "生命科学重点项目评审会",
+    "initiator": "李教授",
+    "initiatedAt": "2026-03-02 14:23",
+    "status": "pending",
+    "reviewPeriod": ["2026-03-08 09:00", "2026-03-27 18:00"],
+    "performancePeriod": ["2026-03-08 09:00", "2026-03-27 18:00"],
+    "reviewTemplateId": "tpl-review-001",
+    "noticeTemplateId": "tpl-notice-002",
+    "rejectReason": "",
+    "approver": "",
+    "approvedAt": "",
+    "projects": [
+      {
+        "id": "rp-006",
+        "projectCode": "LIFE-2024-002",
+        "projectType": "基础培育类",
+        "faculty": "生命科学学部",
+        "subDirection": "基因组学",
+        "subDirectionLeader": "王教授",
+        "batch": "第一批",
+        "projectName": "基因编辑效率提升关键技术研究",
+        "principal": "刘洋"
+      },
+      {
+        "id": "rp-007",
+        "projectCode": "LIFE-2024-004",
+        "projectType": "自由探索类",
+        "faculty": "生命科学学部",
+        "subDirection": "结构生物学",
+        "subDirectionLeader": "王教授",
+        "batch": "第一批",
+        "projectName": "蛋白质结构预测与功能解析",
+        "principal": "陈晨"
+      }
+    ]
+  }
+]

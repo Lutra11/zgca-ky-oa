@@ -1,0 +1,368 @@
+[
+  {
+    "file": "batch-management.png",
+    "keyword": "批次管理",
+    "iconId": 8262059,
+    "iconName": "批次管理"
+  },
+  {
+    "file": "project-application.png",
+    "keyword": "项目申报",
+    "iconId": 774518,
+    "iconName": "项目申报"
+  },
+  {
+    "file": "declaration-review.png",
+    "keyword": "材料审查",
+    "iconId": 4785179,
+    "iconName": "材料审查"
+  },
+  {
+    "file": "review-organization.png",
+    "keyword": "评审组织",
+    "iconId": 10929274,
+    "iconName": "E评审组织"
+  },
+  {
+    "file": "expert-review.png",
+    "keyword": "专家评审",
+    "iconId": 39595442,
+    "iconName": "专家评审"
+  },
+  {
+    "file": "project-approval.png",
+    "keyword": "项目立项",
+    "iconId": 8536563,
+    "iconName": "175项目立项"
+  },
+  {
+    "file": "external-project-archive.png",
+    "keyword": "项目导入",
+    "iconId": 12072261,
+    "iconName": "项目-导入-字典导入"
+  },
+  {
+    "file": "application-query.png",
+    "keyword": "查询",
+    "iconId": 2076397,
+    "iconName": " 查询返程"
+  },
+  {
+    "file": "project-library.png",
+    "keyword": "项目库",
+    "iconId": 7088588,
+    "iconName": "项目库"
+  },
+  {
+    "file": "project-launch.png",
+    "keyword": "项目启动",
+    "iconId": 3793698,
+    "iconName": "项目启动"
+  },
+  {
+    "file": "project-recruitment-overview.png",
+    "keyword": "招聘",
+    "iconId": 1079372,
+    "iconName": "招聘"
+  },
+  {
+    "file": "finance-workbench.png",
+    "keyword": "财务工作台",
+    "iconId": 12617688,
+    "iconName": "工作台_财务工作台"
+  },
+  {
+    "file": "budget-management.png",
+    "keyword": "预算管理",
+    "iconId": 13604627,
+    "iconName": "预算管理"
+  },
+  {
+    "file": "finance-alert.png",
+    "keyword": "预警",
+    "iconId": 12339469,
+    "iconName": "资源 39"
+  },
+  {
+    "file": "reconciliation.png",
+    "keyword": "对账",
+    "iconId": 7905555,
+    "iconName": "对账"
+  },
+  {
+    "file": "paper-outcomes.png",
+    "keyword": "论文",
+    "iconId": 6508142,
+    "iconName": "论文"
+  },
+  {
+    "file": "open-source.png",
+    "keyword": "开源",
+    "iconId": 830233,
+    "iconName": "开源中国社区"
+  },
+  {
+    "file": "intellectual-property.png",
+    "keyword": "知识产权",
+    "iconId": 11358804,
+    "iconName": "知识产权资料_知识产权-身份证"
+  },
+  {
+    "file": "analytics-dashboard.png",
+    "keyword": "驾驶舱",
+    "iconId": 8546837,
+    "iconName": "驾驶舱"
+  },
+  {
+    "file": "initiation-analysis.png",
+    "keyword": "立项分析",
+    "iconId": 36609580,
+    "iconName": "立项分析"
+  },
+  {
+    "file": "ongoing-project-analysis.png",
+    "keyword": "项目分析",
+    "iconId": 26851696,
+    "iconName": "项目分析"
+  },
+  {
+    "file": "quarter-analysis.png",
+    "keyword": "季度分析",
+    "iconId": 33525807,
+    "iconName": "季度分析汇总表未选中"
+  },
+  {
+    "file": "finance-analysis.png",
+    "keyword": "经费分析",
+    "iconId": 7768823,
+    "iconName": "经费分析"
+  },
+  {
+    "file": "outcome-analysis.png",
+    "keyword": "成果分析",
+    "iconId": 13107509,
+    "iconName": "成果分析"
+  },
+  {
+    "file": "team-analysis.png",
+    "keyword": "团队分析",
+    "iconId": 6125426,
+    "iconName": "团队分析"
+  },
+  {
+    "file": "organization-management.png",
+    "keyword": "组织机构",
+    "iconId": 7872206,
+    "iconName": "组织机构"
+  },
+  {
+    "file": "people-library.png",
+    "keyword": "人员库",
+    "iconId": 43201925,
+    "iconName": "人员库"
+  },
+  {
+    "file": "expert-library.png",
+    "keyword": "专家库",
+    "iconId": 10482372,
+    "iconName": "专家库"
+  },
+  {
+    "file": "project-config.png",
+    "keyword": "项目配置",
+    "iconId": 7905559,
+    "iconName": "项目配置"
+  },
+  {
+    "file": "review-index.png",
+    "keyword": "评审指标",
+    "iconId": 20654167,
+    "iconName": "评审指标方案"
+  },
+  {
+    "file": "template-management.png",
+    "keyword": "模板管理",
+    "iconId": 3978020,
+    "iconName": "模板管理"
+  },
+  {
+    "file": "announcement-publishing.png",
+    "keyword": "公告发布",
+    "iconId": 4066476,
+    "iconName": "公告发布"
+  },
+  {
+    "file": "workflow-config.png",
+    "keyword": "审批流程",
+    "iconId": 37226664,
+    "iconName": "审批流程"
+  },
+  {
+    "file": "user-account.png",
+    "keyword": "用户账号",
+    "iconId": 20368711,
+    "iconName": "用户账号"
+  },
+  {
+    "file": "role-permission.png",
+    "keyword": "权限管理",
+    "iconId": 3868287,
+    "iconName": "账号权限管理"
+  },
+  {
+    "file": "approval-process.png",
+    "keyword": "审批流程",
+    "iconId": 37226664,
+    "iconName": "审批流程"
+  },
+  {
+    "file": "message-reminder.png",
+    "keyword": "消息提醒",
+    "iconId": 1167198,
+    "iconName": "消息提醒"
+  },
+  {
+    "file": "data-sync.png",
+    "keyword": "数据同步",
+    "iconId": 5978739,
+    "iconName": "data-synchronization"
+  },
+  {
+    "file": "file-storage.png",
+    "keyword": "文件存储",
+    "iconId": 21053615,
+    "iconName": "文件存储"
+  },
+  {
+    "file": "audit-log.png",
+    "keyword": "操作日志",
+    "iconId": 9337495,
+    "iconName": "操作日志"
+  },
+  {
+    "file": "initiation-launch.png",
+    "keyword": "发起立项",
+    "iconId": 26833093,
+    "iconName": "重新发起立项"
+  },
+  {
+    "file": "external-import.png",
+    "keyword": "外部导入",
+    "iconId": 10710471,
+    "iconName": "外部导入"
+  },
+  {
+    "file": "my-project.png",
+    "keyword": "我的项目",
+    "iconId": 1921123,
+    "iconName": "我的项目"
+  },
+  {
+    "file": "recruitment-management.png",
+    "keyword": "招聘管理",
+    "iconId": 10231684,
+    "iconName": "招聘管理"
+  },
+  {
+    "file": "application-approval.png",
+    "keyword": "申请审批",
+    "iconId": 563774,
+    "iconName": "申请 审批"
+  },
+  {
+    "file": "member-management.png",
+    "keyword": "成员管理",
+    "iconId": 6908863,
+    "iconName": "成员管理"
+  },
+  {
+    "file": "my-finance.png",
+    "keyword": "我的经费",
+    "iconId": 45208649,
+    "iconName": "我的经费部门"
+  },
+  {
+    "file": "my-paper.png",
+    "keyword": "我的论文",
+    "iconId": 3944663,
+    "iconName": "我的论文"
+  },
+  {
+    "file": "my-ip.png",
+    "keyword": "知识产权",
+    "iconId": 11358804,
+    "iconName": "知识产权资料_知识产权-身份证"
+  },
+  {
+    "file": "my-patent.png",
+    "keyword": "专利",
+    "iconId": 22773568,
+    "iconName": "专利"
+  },
+  {
+    "file": "recruitment-square.png",
+    "keyword": "招募广场",
+    "iconId": 392135,
+    "iconName": "演讲"
+  },
+  {
+    "file": "my-application.png",
+    "keyword": "我的申请",
+    "iconId": 10268603,
+    "iconName": "我的申请"
+  },
+  {
+    "file": "quarterly-review.png",
+    "keyword": "季度评审",
+    "iconId": 24975749,
+    "iconName": "评分"
+  },
+  {
+    "file": "data-maintenance.png",
+    "keyword": "数据维护",
+    "iconId": 7712219,
+    "iconName": "数据维护"
+  },
+  {
+    "file": "template-build.png",
+    "keyword": "模板搭建",
+    "iconId": 39745218,
+    "iconName": "模板搭建-copy"
+  },
+  {
+    "file": "review-projects.png",
+    "keyword": "项目评审",
+    "iconId": 28627465,
+    "iconName": "项目评审"
+  },
+  {
+    "file": "review-management.png",
+    "keyword": "评审管理",
+    "iconId": 12820182,
+    "iconName": "考核评审管理"
+  },
+  {
+    "file": "review-material.png",
+    "keyword": "材料提交",
+    "iconId": 41784172,
+    "iconName": "提交文件"
+  },
+  {
+    "file": "material-achievement.png",
+    "keyword": "成果维护",
+    "iconId": 43291359,
+    "iconName": "维护管理"
+  },
+  {
+    "file": "review-results.png",
+    "keyword": "评审结果",
+    "iconId": 20654161,
+    "iconName": "评审结果"
+  },
+  {
+    "file": "evaluation-360.png",
+    "keyword": "360评价",
+    "iconId": 9245797,
+    "iconName": "360评价"
+  }
+]

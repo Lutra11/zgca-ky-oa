@@ -1,0 +1,707 @@
+[
+  {
+    "id": "detail-pm2025001",
+    "projectCode": "PM2025001",
+    "projectName": "基于深度学习的蛋白质结构预测研究",
+    "projectType": "青年科研项目",
+    "projectBatch": "2026年第一批",
+    "status": "评审中",
+    "faculty": "AI4S",
+    "subDirection": "深度学习",
+    "projectLeader": "张伟",
+    "subDirectionLeader": "刘洋",
+    "establishmentDate": "2026-04-10",
+    "plannedStartDate": "2026-04-15",
+    "plannedEndDate": "2027-04-14",
+    "description": {
+      "goal": "本项目面向蛋白质结构预测方法，研究蛋白质三维结构预测模型，构建高精度预测框架。",
+      "content": "围绕序列特征表征、结构约束建模、多源生物数据融合与模型可解释性开展研究，形成可复用的计算流程。",
+      "applicationValue": "支撑 AI4S 与生命科学交叉研究，为药物靶点发现、功能蛋白设计和科研教学提供基础能力。"
+    },
+    "budget": 120,
+    "usedBudget": 45.2,
+    "expectedResults": 3,
+    "completedResults": 1,
+    "paperCount": 2,
+    "tags": ["深度学习", "蛋白质结构预测", "AI4S", "生命科学", "计算生物学"],
+    "members": [
+      {
+        "name": "张伟",
+        "role": "项目负责人",
+        "department": "人工智能研究院",
+        "title": "副研究员",
+        "phone": "138-1234-5678",
+        "email": "zhangwei@ai-institute.edu.cn",
+        "joinedAt": "2026-04-10"
+      },
+      {
+        "name": "刘海广",
+        "role": "项目成员",
+        "department": "生命科学中心",
+        "title": "博士后",
+        "phone": "137-2345-6789",
+        "email": "liuhg@ai-institute.edu.cn",
+        "joinedAt": "2026-04-12"
+      },
+      {
+        "name": "王敏",
+        "role": "项目成员",
+        "department": "计算平台部",
+        "title": "工程师",
+        "phone": "136-3456-7890",
+        "email": "wangmin@ai-institute.edu.cn",
+        "joinedAt": "2026-04-13"
+      }
+    ],
+    "reviewInfo": {
+      "launched": true,
+      "reviewName": "2026年第一季度推进会",
+      "reviewPeriod": "2026-05-20 09:00 至 2026-07-25 18:00",
+      "reviewers": ["李伟", "王敏", "赵山", "周子航", "陈立"],
+      "assignedCount": 5,
+      "submittedCount": 4,
+      "evaluationRequired": 10,
+      "evaluationCompleted": 8,
+      "result": "评审中",
+      "comments": "专家总体认为项目方向明确，建议进一步补充模型验证数据与阶段成果说明。"
+    },
+    "materials": [
+      {
+        "name": "项目申请书",
+        "type": "申报材料",
+        "format": "PDF",
+        "uploader": "刘海广",
+        "uploadedAt": "2026-04-10 10:20",
+        "status": "已提交"
+      },
+      {
+        "name": "项目预算表",
+        "type": "预算材料",
+        "format": "XLSX",
+        "uploader": "张伟",
+        "uploadedAt": "2026-04-11 15:30",
+        "status": "已提交"
+      },
+      {
+        "name": "研究计划书",
+        "type": "研究材料",
+        "format": "DOCX",
+        "uploader": "张伟",
+        "uploadedAt": "2026-04-12 09:10",
+        "status": "已提交"
+      },
+      {
+        "name": "阶段成果材料",
+        "type": "阶段材料",
+        "format": "PDF",
+        "uploader": "王敏",
+        "uploadedAt": "2026-07-15 16:20",
+        "status": "待补充"
+      },
+      {
+        "name": "验收材料",
+        "type": "验收材料",
+        "format": "DOCX",
+        "uploader": "-",
+        "uploadedAt": "-",
+        "status": "未提交"
+      }
+    ],
+    "progressStages": [
+      {
+        "key": "apply",
+        "label": "项目申报",
+        "startTime": "2026-04-10",
+        "endTime": "2026-04-10",
+        "owner": "张伟",
+        "status": "done",
+        "result": "已完成项目申报"
+      },
+      {
+        "key": "formalReview",
+        "label": "形式审核",
+        "startTime": "2026-04-11",
+        "endTime": "2026-04-15",
+        "owner": "科研项目管理员",
+        "status": "done",
+        "result": "形式审核通过"
+      },
+      {
+        "key": "review",
+        "label": "项目评审",
+        "startTime": "2026-05-20",
+        "endTime": "2026-07-25",
+        "owner": "科研项目管理员",
+        "status": "active",
+        "result": "专家评审进行中"
+      },
+      {
+        "key": "execution",
+        "label": "项目执行",
+        "startTime": "2026-07-26",
+        "endTime": "2027-03-31",
+        "owner": "张伟",
+        "status": "pending",
+        "result": "未开始"
+      },
+      {
+        "key": "acceptance",
+        "label": "验收结项",
+        "startTime": "2027-04-01",
+        "endTime": "2027-04-14",
+        "owner": "科研项目管理员",
+        "status": "pending",
+        "result": "未开始"
+      }
+    ],
+    "timeline": [
+      {
+        "date": "2026-04-10",
+        "title": "项目申报",
+        "operator": "张伟",
+        "note": "提交项目申请",
+        "status": "done"
+      },
+      {
+        "date": "2026-04-15",
+        "title": "形式审核通过",
+        "operator": "科研部审核",
+        "note": "项目材料完整",
+        "status": "done"
+      },
+      {
+        "date": "2026-05-20",
+        "title": "发起项目评审",
+        "operator": "系统",
+        "note": "已分配5名评委",
+        "status": "done"
+      },
+      {
+        "date": "2026-07-25 18:00",
+        "title": "评审截止",
+        "operator": "科研项目管理员",
+        "note": "需完成所有专家评审提交",
+        "status": "active"
+      },
+      {
+        "date": "2026-08-05",
+        "title": "季度推进会",
+        "operator": "科研部",
+        "note": "项目成果汇报",
+        "status": "pending"
+      }
+    ],
+    "risks": [
+      {
+        "id": "risk-001",
+        "level": "warning",
+        "title": "1份项目材料尚未提交",
+        "description": "研究计划书需继续补充阶段成果附件",
+        "action": "去处理"
+      },
+      {
+        "id": "risk-002",
+        "level": "warning",
+        "title": "1名评委尚未提交评审结果",
+        "description": "王教授",
+        "action": "去催办"
+      },
+      {
+        "id": "risk-003",
+        "level": "info",
+        "title": "距评审截止还有6天",
+        "description": "请及时跟进评审进度",
+        "action": "去查看"
+      },
+      {
+        "id": "risk-004",
+        "level": "success",
+        "title": "项目负责人信息完整",
+        "description": "无异常",
+        "action": "-"
+      }
+    ],
+    "operationLogs": [
+      {
+        "operator": "张伟",
+        "type": "更新项目",
+        "content": "更新了项目基本信息",
+        "time": "2026-04-10 09:40"
+      },
+      {
+        "operator": "刘海广",
+        "type": "上传材料",
+        "content": "上传了项目申请书",
+        "time": "2026-04-10 10:20"
+      },
+      {
+        "operator": "系统",
+        "type": "分配评委",
+        "content": "系统分配了5名评委",
+        "time": "2026-05-20 09:00"
+      },
+      {
+        "operator": "科研项目管理员",
+        "type": "审核通过",
+        "content": "项目形式审核通过",
+        "time": "2026-04-15 15:30"
+      }
+    ],
+    "contactInfo": {
+      "projectSource": "学校自筹",
+      "researchField": "计算生物学",
+      "keywords": "深度学习、蛋白质结构预测、AI应用",
+      "resultForms": "论文、软件著作权、研究报告",
+      "partner": "清华大学生物医学中心",
+      "partnerStartDate": "2026-05-01",
+      "partnerEndDate": "2027-04-14",
+      "remark": "-",
+      "department": "人工智能研究院",
+      "contactPerson": "张伟",
+      "phone": "138-1234-5678",
+      "email": "zhangwei@ai-institute.edu.cn"
+    }
+  },
+  {
+    "id": "detail-pmj240401",
+    "projectCode": "PMJ240401",
+    "projectName": "多模态脑影像在阿尔茨海默病早期诊断中的应用研究",
+    "projectType": "基础培育类",
+    "projectBatch": "TPL-2024",
+    "status": "评审中",
+    "faculty": "基础研究部",
+    "subDirection": "AI 医疗",
+    "projectLeader": "张天宇",
+    "subDirectionLeader": "周子航",
+    "establishmentDate": "2026-04-10",
+    "plannedStartDate": "2026-04-15",
+    "plannedEndDate": "2027-04-14",
+    "description": {
+      "goal": "构建融合结构影像、功能影像和临床量表的早期诊断模型，提高阿尔茨海默病早筛准确率。",
+      "content": "研究多模态医学影像特征提取、跨模态对齐、临床知识约束和模型可靠性评估方法。",
+      "applicationValue": "为临床早筛和科研队列管理提供辅助诊断工具，支撑 AI 医疗方向项目成果沉淀。"
+    },
+    "budget": 98,
+    "usedBudget": 31.4,
+    "expectedResults": 4,
+    "completedResults": 1,
+    "paperCount": 1,
+    "tags": ["AI医疗", "多模态影像", "早期诊断", "医学AI", "临床辅助决策"],
+    "members": [
+      {
+        "name": "张天宇",
+        "role": "项目负责人",
+        "department": "基础研究部",
+        "title": "研究员",
+        "phone": "135-1200-2401",
+        "email": "zhangty@ai-institute.edu.cn",
+        "joinedAt": "2026-04-10"
+      },
+      {
+        "name": "李伟",
+        "role": "项目成员",
+        "department": "医学智能中心",
+        "title": "副教授",
+        "phone": "135-1200-2402",
+        "email": "liwei@ai-institute.edu.cn",
+        "joinedAt": "2026-04-12"
+      },
+      {
+        "name": "赵山",
+        "role": "项目成员",
+        "department": "数据平台部",
+        "title": "算法工程师",
+        "phone": "135-1200-2403",
+        "email": "zhaoshan@ai-institute.edu.cn",
+        "joinedAt": "2026-04-13"
+      }
+    ],
+    "reviewInfo": {
+      "launched": true,
+      "reviewName": "TPL-2024项目评审",
+      "reviewPeriod": "2026-07-12 09:00 至 2026-07-25 18:00",
+      "reviewers": ["李伟", "王敏", "赵山", "周子航"],
+      "assignedCount": 4,
+      "submittedCount": 3,
+      "evaluationRequired": 10,
+      "evaluationCompleted": 3,
+      "result": "评审中",
+      "comments": "项目应用场景明确，需继续补充真实世界数据验证方案。"
+    },
+    "materials": [
+      {
+        "name": "项目申请书",
+        "type": "申报材料",
+        "format": "PDF",
+        "uploader": "张天宇",
+        "uploadedAt": "2026-07-12 09:30",
+        "status": "已提交"
+      },
+      {
+        "name": "项目预算表",
+        "type": "预算材料",
+        "format": "XLSX",
+        "uploader": "张天宇",
+        "uploadedAt": "2026-07-12 09:45",
+        "status": "已提交"
+      },
+      {
+        "name": "研究计划书",
+        "type": "研究材料",
+        "format": "DOCX",
+        "uploader": "李伟",
+        "uploadedAt": "2026-07-13 10:00",
+        "status": "已提交"
+      },
+      {
+        "name": "阶段成果材料",
+        "type": "阶段材料",
+        "format": "PDF",
+        "uploader": "赵山",
+        "uploadedAt": "2026-07-15 16:10",
+        "status": "待补充"
+      },
+      {
+        "name": "验收材料",
+        "type": "验收材料",
+        "format": "DOCX",
+        "uploader": "-",
+        "uploadedAt": "-",
+        "status": "未提交"
+      }
+    ],
+    "progressStages": [
+      {
+        "key": "apply",
+        "label": "项目申报",
+        "startTime": "2026-04-10",
+        "endTime": "2026-04-10",
+        "owner": "张天宇",
+        "status": "done",
+        "result": "已完成项目申报"
+      },
+      {
+        "key": "formalReview",
+        "label": "形式审核",
+        "startTime": "2026-04-11",
+        "endTime": "2026-04-15",
+        "owner": "科研项目管理员",
+        "status": "done",
+        "result": "材料完整，审核通过"
+      },
+      {
+        "key": "review",
+        "label": "项目评审",
+        "startTime": "2026-07-12",
+        "endTime": "2026-07-25",
+        "owner": "科研项目管理员",
+        "status": "active",
+        "result": "评审进行中"
+      },
+      {
+        "key": "execution",
+        "label": "项目执行",
+        "startTime": "2026-07-26",
+        "endTime": "2027-03-31",
+        "owner": "张天宇",
+        "status": "pending",
+        "result": "未开始"
+      },
+      {
+        "key": "acceptance",
+        "label": "验收结项",
+        "startTime": "2027-04-01",
+        "endTime": "2027-04-14",
+        "owner": "科研项目管理员",
+        "status": "pending",
+        "result": "未开始"
+      }
+    ],
+    "timeline": [
+      {
+        "date": "2026-04-10",
+        "title": "项目申报",
+        "operator": "张天宇",
+        "note": "提交项目申请",
+        "status": "done"
+      },
+      {
+        "date": "2026-04-15",
+        "title": "形式审核通过",
+        "operator": "科研项目管理员",
+        "note": "材料通过形式审核",
+        "status": "done"
+      },
+      {
+        "date": "2026-07-12",
+        "title": "分配评委",
+        "operator": "系统",
+        "note": "已分配4名评委",
+        "status": "done"
+      },
+      {
+        "date": "2026-07-25 18:00",
+        "title": "评审截止",
+        "operator": "科研项目管理员",
+        "note": "等待1名评委提交",
+        "status": "active"
+      },
+      {
+        "date": "2026-08-05",
+        "title": "季度推进会",
+        "operator": "科研部",
+        "note": "进行阶段汇报",
+        "status": "pending"
+      }
+    ],
+    "risks": [
+      {
+        "id": "risk-pmj240401-1",
+        "level": "warning",
+        "title": "1名评委尚未提交评审结果",
+        "description": "请在评审截止前完成催办",
+        "action": "去催办"
+      },
+      {
+        "id": "risk-pmj240401-2",
+        "level": "info",
+        "title": "距评审截止较近",
+        "description": "建议每日查看评审提交进度",
+        "action": "去查看"
+      }
+    ],
+    "operationLogs": [
+      {
+        "operator": "张天宇",
+        "type": "提交项目",
+        "content": "提交了项目申请材料",
+        "time": "2026-04-10 09:30"
+      },
+      {
+        "operator": "科研项目管理员",
+        "type": "分配评委",
+        "content": "为项目分配4名评委",
+        "time": "2026-07-13 10:20"
+      },
+      {
+        "operator": "系统",
+        "type": "更新进度",
+        "content": "同步360环评进度为3/10",
+        "time": "2026-07-15 16:10"
+      }
+    ],
+    "contactInfo": {
+      "projectSource": "院级培育",
+      "researchField": "医学人工智能",
+      "keywords": "多模态影像、阿尔茨海默病、早筛模型",
+      "resultForms": "论文、模型工具、研究报告",
+      "partner": "附属医院影像中心",
+      "partnerStartDate": "2026-05-01",
+      "partnerEndDate": "2027-04-14",
+      "remark": "需补充临床验证数据",
+      "department": "基础研究部",
+      "contactPerson": "张天宇",
+      "phone": "135-1200-2401",
+      "email": "zhangty@ai-institute.edu.cn"
+    }
+  },
+  {
+    "id": "detail-pmj240402",
+    "projectCode": "PMJ240402",
+    "projectName": "基于深度学习的量子材料力学性能预测方法研究",
+    "projectType": "应用研究类",
+    "projectBatch": "TPL-2024",
+    "status": "已结项",
+    "faculty": "应用研究部",
+    "subDirection": "AI 物理",
+    "projectLeader": "李思远",
+    "subDirectionLeader": "赵一",
+    "establishmentDate": "2026-03-18",
+    "plannedStartDate": "2026-03-20",
+    "plannedEndDate": "2026-07-18",
+    "description": {
+      "goal": "构建面向量子材料力学性能预测的深度学习模型，提高材料筛选效率。",
+      "content": "开展材料图表示、物理约束建模、实验数据校准与预测结果可解释性研究。",
+      "applicationValue": "支撑材料研发场景中的候选材料快速筛选，降低实验验证成本。"
+    },
+    "budget": 80,
+    "usedBudget": 72.5,
+    "expectedResults": 3,
+    "completedResults": 3,
+    "paperCount": 3,
+    "tags": ["AI物理", "量子材料", "深度学习", "材料预测"],
+    "members": [
+      {
+        "name": "李思远",
+        "role": "项目负责人",
+        "department": "应用研究部",
+        "title": "研究员",
+        "phone": "136-1200-2402",
+        "email": "lisy@ai-institute.edu.cn",
+        "joinedAt": "2026-03-18"
+      },
+      {
+        "name": "冯阳",
+        "role": "项目成员",
+        "department": "AI物理中心",
+        "title": "工程师",
+        "phone": "136-1200-2403",
+        "email": "fengyang@ai-institute.edu.cn",
+        "joinedAt": "2026-03-20"
+      }
+    ],
+    "reviewInfo": {
+      "launched": true,
+      "reviewName": "TPL-2024项目评审",
+      "reviewPeriod": "2026-07-11 09:00 至 2026-07-18 18:00",
+      "reviewers": ["冯阳", "赵一"],
+      "assignedCount": 2,
+      "submittedCount": 2,
+      "evaluationRequired": 8,
+      "evaluationCompleted": 8,
+      "result": "通过",
+      "comments": "项目已完成既定研究任务，成果材料完整。"
+    },
+    "materials": [
+      {
+        "name": "项目申请书",
+        "type": "申报材料",
+        "format": "PDF",
+        "uploader": "李思远",
+        "uploadedAt": "2026-03-18 10:10",
+        "status": "已提交"
+      },
+      {
+        "name": "项目预算表",
+        "type": "预算材料",
+        "format": "XLSX",
+        "uploader": "李思远",
+        "uploadedAt": "2026-03-18 11:30",
+        "status": "已提交"
+      },
+      {
+        "name": "研究计划书",
+        "type": "研究材料",
+        "format": "DOCX",
+        "uploader": "冯阳",
+        "uploadedAt": "2026-03-19 09:15",
+        "status": "已提交"
+      },
+      {
+        "name": "阶段成果材料",
+        "type": "阶段材料",
+        "format": "PDF",
+        "uploader": "赵一",
+        "uploadedAt": "2026-07-15 10:00",
+        "status": "已提交"
+      },
+      {
+        "name": "验收材料",
+        "type": "验收材料",
+        "format": "DOCX",
+        "uploader": "李思远",
+        "uploadedAt": "2026-07-18 16:20",
+        "status": "已提交"
+      }
+    ],
+    "progressStages": [
+      {
+        "key": "apply",
+        "label": "项目申报",
+        "startTime": "2026-03-18",
+        "endTime": "2026-03-18",
+        "owner": "李思远",
+        "status": "done",
+        "result": "已完成项目申报"
+      },
+      {
+        "key": "formalReview",
+        "label": "形式审核",
+        "startTime": "2026-03-19",
+        "endTime": "2026-03-20",
+        "owner": "科研项目管理员",
+        "status": "done",
+        "result": "审核通过"
+      },
+      {
+        "key": "review",
+        "label": "项目评审",
+        "startTime": "2026-07-11",
+        "endTime": "2026-07-18",
+        "owner": "科研项目管理员",
+        "status": "done",
+        "result": "评审通过"
+      },
+      {
+        "key": "execution",
+        "label": "项目执行",
+        "startTime": "2026-03-20",
+        "endTime": "2026-07-17",
+        "owner": "李思远",
+        "status": "done",
+        "result": "完成研究任务"
+      },
+      {
+        "key": "acceptance",
+        "label": "验收结项",
+        "startTime": "2026-07-18",
+        "endTime": "2026-07-18",
+        "owner": "科研项目管理员",
+        "status": "done",
+        "result": "已结项"
+      }
+    ],
+    "timeline": [
+      {
+        "date": "2026-03-18",
+        "title": "项目申报",
+        "operator": "李思远",
+        "note": "提交项目申请",
+        "status": "done"
+      },
+      {
+        "date": "2026-03-20",
+        "title": "形式审核通过",
+        "operator": "科研项目管理员",
+        "note": "材料完整",
+        "status": "done"
+      },
+      {
+        "date": "2026-07-18",
+        "title": "验收结项",
+        "operator": "科研部",
+        "note": "项目完成结项",
+        "status": "done"
+      }
+    ],
+    "risks": [],
+    "operationLogs": [
+      {
+        "operator": "李思远",
+        "type": "上传材料",
+        "content": "上传验收材料",
+        "time": "2026-07-18 16:20"
+      },
+      {
+        "operator": "科研部",
+        "type": "项目结项",
+        "content": "确认项目验收通过",
+        "time": "2026-07-18 18:00"
+      }
+    ],
+    "contactInfo": {
+      "projectSource": "院级应用项目",
+      "researchField": "AI for Physics",
+      "keywords": "量子材料、图神经网络、性能预测",
+      "resultForms": "论文、算法模型、技术报告",
+      "partner": "材料计算联合实验室",
+      "partnerStartDate": "2026-03-20",
+      "partnerEndDate": "2026-07-18",
+      "remark": "已完成验收",
+      "department": "应用研究部",
+      "contactPerson": "李思远",
+      "phone": "136-1200-2402",
+      "email": "lisy@ai-institute.edu.cn"
+    }
+  }
+]

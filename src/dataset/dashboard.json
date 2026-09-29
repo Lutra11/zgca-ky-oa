@@ -1,0 +1,360 @@
+{
+  "currentBatch": {
+    "name": "2026年第一次季度推进会",
+    "code": "BATCH-2026-Q1",
+    "period": "2026-07-20 09:00 至 2026-08-05 18:00"
+  },
+  "metrics": [
+    {
+      "key": "pendingReview",
+      "label": "待审核项目",
+      "value": 12,
+      "unit": "项",
+      "trend": "较昨日 +3",
+      "tone": "blue",
+      "icon": "DocumentChecked"
+    },
+    {
+      "key": "runningProjects",
+      "label": "进行中项目",
+      "value": 86,
+      "unit": "项",
+      "trend": "本月新增 8",
+      "tone": "green",
+      "icon": "FolderOpened"
+    },
+    {
+      "key": "waitingReviewLaunch",
+      "label": "待发起评审",
+      "value": 7,
+      "unit": "项",
+      "trend": "需尽快处理",
+      "tone": "orange",
+      "icon": "VideoPlay"
+    },
+    {
+      "key": "nearDeadline",
+      "label": "临近截止",
+      "value": 9,
+      "unit": "项",
+      "trend": "7天内截止",
+      "tone": "red",
+      "icon": "Calendar"
+    },
+    {
+      "key": "riskProjects",
+      "label": "异常项目",
+      "value": 4,
+      "unit": "项",
+      "trend": "2项已逾期",
+      "tone": "purple",
+      "icon": "WarningFilled"
+    }
+  ],
+  "todoTabs": [
+    {
+      "key": "pending",
+      "label": "待我处理",
+      "count": 12,
+      "items": [
+        {
+          "id": "todo-001",
+          "level": "紧急",
+          "title": "审核青年科研项目申报材料",
+          "businessType": "项目申报",
+          "submitter": "刘海广",
+          "dueTime": "今天 09:30",
+          "status": "待审核",
+          "action": "去处理"
+        },
+        {
+          "id": "todo-002",
+          "level": "即将超时",
+          "title": "配置第一次季度推进会",
+          "businessType": "项目评审",
+          "submitter": "王敏",
+          "dueTime": "昨天 16:20",
+          "status": "待配置",
+          "action": "去配置"
+        },
+        {
+          "id": "todo-003",
+          "level": "即将超时",
+          "title": "发布项目材料补交通知",
+          "businessType": "通知管理",
+          "submitter": "李雪",
+          "dueTime": "昨天 14:05",
+          "status": "待发布",
+          "action": "去发布"
+        },
+        {
+          "id": "todo-004",
+          "level": "普通",
+          "title": "审核自由探索项目中期材料",
+          "businessType": "项目申报",
+          "submitter": "张岩",
+          "dueTime": "05-19 11:12",
+          "status": "待审核",
+          "action": "去处理"
+        }
+      ]
+    },
+    {
+      "key": "audit",
+      "label": "待我审核",
+      "count": 5,
+      "items": [
+        {
+          "id": "todo-005",
+          "level": "紧急",
+          "title": "确认重点科研项目立项变更",
+          "businessType": "变更审核",
+          "submitter": "陈建国",
+          "dueTime": "今天 15:00",
+          "status": "待审核",
+          "action": "去审核"
+        },
+        {
+          "id": "todo-006",
+          "level": "普通",
+          "title": "审核项目阶段成果补充说明",
+          "businessType": "成果维护",
+          "submitter": "赵宇宁",
+          "dueTime": "明天 10:00",
+          "status": "待审核",
+          "action": "去审核"
+        }
+      ]
+    },
+    {
+      "key": "publish",
+      "label": "待我发布",
+      "count": 3,
+      "items": [
+        {
+          "id": "todo-007",
+          "level": "即将超时",
+          "title": "发布专家评审结果公示",
+          "businessType": "公告发布",
+          "submitter": "周子航",
+          "dueTime": "今天 18:00",
+          "status": "待发布",
+          "action": "去发布"
+        }
+      ]
+    },
+    {
+      "key": "done",
+      "label": "已处理",
+      "count": 18,
+      "items": [
+        {
+          "id": "todo-008",
+          "level": "普通",
+          "title": "完成科研经费材料归档",
+          "businessType": "项目管理",
+          "submitter": "系统",
+          "dueTime": "07-17 16:30",
+          "status": "已处理",
+          "action": "查看"
+        }
+      ]
+    }
+  ],
+  "reviewProgress": {
+    "name": "2026年第一次季度推进会",
+    "participants": 32,
+    "assignedExperts": 30,
+    "expertSubmitted": 24,
+    "waitingSubmit": 6,
+    "deadline": "2026-07-25 18:00",
+    "items": [
+      {
+        "label": "专家分配进度",
+        "value": 93.8
+      },
+      {
+        "label": "评审提交进度",
+        "value": 80
+      },
+      {
+        "label": "学生绩效提交",
+        "value": 62.5
+      },
+      {
+        "label": "360评审完成",
+        "value": 56.3
+      }
+    ]
+  },
+  "stageDistribution": [
+    {
+      "label": "已申报",
+      "value": 176
+    },
+    {
+      "label": "审核通过",
+      "value": 152
+    },
+    {
+      "label": "已评审",
+      "value": 128
+    },
+    {
+      "label": "执行中",
+      "value": 86
+    },
+    {
+      "label": "已结项",
+      "value": 18
+    }
+  ],
+  "importantDates": [
+    {
+      "date": "07月20日",
+      "title": "青年科研项目材料补交截止",
+      "status": "正常"
+    },
+    {
+      "date": "07月22日",
+      "title": "第一次季度推进会评审开始",
+      "status": "正常"
+    },
+    {
+      "date": "07月25日",
+      "title": "专家评审提交截止",
+      "status": "紧急"
+    },
+    {
+      "date": "07月28日",
+      "title": "学生绩效与360评审截止",
+      "status": "紧急"
+    },
+    {
+      "date": "08月05日",
+      "title": "自由探索项目中期检查",
+      "status": "正常"
+    }
+  ],
+  "risks": [
+    {
+      "id": "risk-001",
+      "level": "高",
+      "title": "3个项目未上传项目申请书",
+      "action": "查看项目"
+    },
+    {
+      "id": "risk-002",
+      "level": "中",
+      "title": "2名专家超过评审截止时间",
+      "action": "发送提醒"
+    },
+    {
+      "id": "risk-003",
+      "level": "中",
+      "title": "1个项目负责人信息不完整",
+      "action": "查看项目"
+    },
+    {
+      "id": "risk-004",
+      "level": "低",
+      "title": "1场评审未配置通知模板",
+      "action": "补充配置"
+    },
+    {
+      "id": "risk-005",
+      "level": "低",
+      "title": "4个项目超过30天未更新进展",
+      "action": "批量催办"
+    }
+  ],
+  "projectTypeDistribution": [
+    {
+      "name": "基础培育类",
+      "value": 138
+    },
+    {
+      "name": "自由探索类",
+      "value": 115
+    },
+    {
+      "name": "青年科研项目",
+      "value": 92
+    },
+    {
+      "name": "重点科研项目",
+      "value": 76
+    },
+    {
+      "name": "其他",
+      "value": 39
+    }
+  ],
+  "facultyDirectionDistribution": [
+    {
+      "name": "AI&IT",
+      "value": 98
+    },
+    {
+      "name": "生命科学",
+      "value": 86
+    },
+    {
+      "name": "材料科学",
+      "value": 78
+    },
+    {
+      "name": "信息科学",
+      "value": 64
+    },
+    {
+      "name": "能源科学",
+      "value": 54
+    }
+  ],
+  "announcements": [
+    {
+      "id": "notice-001",
+      "title": "关于启动2026年第一次季度推进会评审的通知",
+      "scope": "全院科研项目",
+      "time": "2026-07-18 09:30",
+      "status": "已发布"
+    },
+    {
+      "id": "notice-002",
+      "title": "青年科研项目材料补交提醒",
+      "scope": "青年科研项目",
+      "time": "2026-07-17 16:00",
+      "status": "待确认"
+    },
+    {
+      "id": "notice-003",
+      "title": "自由探索项目中期检查工作安排",
+      "scope": "自由探索类",
+      "time": "2026-07-16 10:20",
+      "status": "草稿"
+    }
+  ],
+  "commonActions": [
+    {
+      "label": "数据维护",
+      "route": "/research-project-admin/review-data-maintenance",
+      "icon": "DocumentChecked"
+    },
+    {
+      "label": "模板搭建",
+      "route": "/research-project-admin/template-create",
+      "icon": "DocumentAdd"
+    },
+    {
+      "label": "项目管理",
+      "route": "/research-project-admin/project-management",
+      "icon": "Folder"
+    },
+    {
+      "label": "公告发布",
+      "route": "/research-project-admin/announcement-publishing",
+      "icon": "Promotion"
+    }
+  ]
+}

@@ -1,0 +1,292 @@
+[
+    {
+        "key":  "researchProjectAdmin",
+        "content":  [
+                        {
+                            "function_name":  "我的首页",
+                            "router":  "/research-project-admin/dashboard",
+                            "icon":  "icon/首页.png"
+                        },
+                        {
+                            "function_name":  "季度评审会",
+                            "router":  "/research-project-admin/quarterly-review-meeting",
+                            "icon":  "icon/季度.png"
+                        },
+                        {
+                            "function_name":  "数据维护",
+                            "router":  "/research-project-admin/review-data-maintenance",
+                            "icon":  "icon/评审.png"
+                        },
+                        {
+                            "function_name":  "模板搭建",
+                            "router":  "/research-project-admin/template-create",
+                            "icon":  "icon/模板.png"
+                        },
+                        {
+                            "function_name":  "项目管理",
+                            "router":  "/research-project-admin/project-management",
+                            "icon":  "icon/项目.png"
+                        },
+                        {
+                            "function_name":  "项目库",
+                            "router":  "/research-project-admin/project-library",
+                            "icon":  "icon/项目.png"
+                        },
+                        {
+                            "function_name":  "项目启动",
+                            "router":  "/research-project-admin/project-start",
+                            "icon":  "icon/项目.png"
+                        },
+                        {
+                            "function_name":  "项目变更",
+                            "router":  "/research-project-admin/project-change",
+                            "icon":  "icon/项目.png"
+                        },
+                        {
+                            "function_name":  "项目招募情况",
+                            "router":  "/research-project-admin/project-recruitment-overview",
+                            "icon":  "icon/项目.png"
+                        },
+                        {
+                            "function_name":  "财务工作台",
+                            "router":  "/research-project-admin/finance-workbench",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "预算管理",
+                            "router":  "/research-project-admin/finance-budget",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "经费预警中心",
+                            "router":  "/research-project-admin/finance-alerts",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "科目纠错与对账",
+                            "router":  "/research-project-admin/finance-reconciliation",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "论文成果管理",
+                            "router":  "/research-project-admin/paper-outcomes-management",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "公告发布",
+                            "router":  "/research-project-admin/announcement-publishing",
+                            "icon":  "icon/公告.png"
+                        }
+                    ]
+    },
+    {
+        "key":  "researchDepartmentLeader",
+        "content":  [
+                        {
+                            "function_name":  "我的首页",
+                            "router":  "/research-dept-leader/dashboard",
+                            "icon":  "icon/首页.png"
+                        },
+                        {
+                            "function_name":  "季度评审会",
+                            "router":  "/research-dept-leader/quarterly-review-meeting",
+                            "icon":  "icon/季度.png"
+                        },
+                        {
+                            "function_name":  "评审项目",
+                            "router":  "/research-dept-leader/review-projects",
+                            "icon":  "icon/评审确认.png"
+                        },
+                        {
+                            "function_name":  "公告发布",
+                            "router":  "/research-dept-leader/announcement-publishing",
+                            "icon":  "icon/公告.png"
+                        }
+                    ]
+    },
+    {
+        "key":  "projectLeader",
+        "content":  [
+                        {
+                            "function_name":  "我的首页",
+                            "router":  "/sub-direction-leader/dashboard",
+                            "icon":  "icon/首页.png"
+                        },
+                        {
+                            "function_name":  "季度评审会",
+                            "router":  "/sub-direction-leader/quarterly-review-meeting",
+                            "icon":  "icon/季度.png"
+                        },
+                        {
+                            "function_name":  "评审管理",
+                            "router":  "/sub-direction-leader/review-management",
+                            "icon":  "icon/评审确认.png"
+                        }
+                    ]
+    },
+    {
+        "key":  "facultyLeader",
+        "content":  [
+                        {
+                            "function_name":  "我的首页",
+                            "router":  "/faculty-leader/dashboard",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "季度评审会",
+                            "router":  "/faculty-leader/quarterly-review-meeting",
+                            "icon":  "icon/季度.png"
+                        },
+                        {
+                            "function_name":  "评审材料提交",
+                            "router":  "/faculty-leader/review-material-submission",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "材料成果维护",
+                            "router":  "/faculty-leader/material-achievement-maintenance",
+                            "icon":  ""
+                        }
+                    ]
+    },
+    {
+        "key":  "reviewer",
+        "content":  [
+                        {
+                            "function_name":  "我的首页",
+                            "router":  "/review-judge/dashboard",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "季度评审会",
+                            "router":  "/review-judge/quarterly-review-meeting",
+                            "icon":  "icon/季度.png"
+                        },
+                        {
+                            "function_name":  "项目评审",
+                            "router":  "/review-judge/project-review",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "评审结果",
+                            "router":  "/review-judge/review-results",
+                            "icon":  ""
+                        }
+                    ]
+    },
+    {
+        "key":  "projectMember",
+        "content":  [
+                        {
+                            "function_name":  "我的首页",
+                            "router":  "/project-member/dashboard",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "项目申报与立项",
+                            "router":  "/project-member/initiation-batches",
+                            "icon":  "icon/项目.png"
+                        },
+                        {
+                            "function_name":  "季度评审会",
+                            "router":  "/project-member/quarterly-review-meeting",
+                            "icon":  "icon/季度.png"
+                        },
+                        {
+                            "function_name":  "我的项目",
+                            "router":  "/project-member/my-projects",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "项目招募管理",
+                            "router":  "/project-member/project-recruitments",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "加入与退出审批",
+                            "router":  "/project-member/project-recruitment-applications",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "项目成员管理",
+                            "router":  "/project-member/project-recruitment-members",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "我的经费",
+                            "router":  "/project-member/finance-overview",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "我的论文",
+                            "router":  "/project-member/my-papers",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "360 环评",
+                            "router":  "/project-member/360-evaluation",
+                            "icon":  ""
+                        }
+                    ]
+    },
+    {
+        "key":  "projectStudent",
+        "content":  [
+                        {
+                            "function_name":  "我的首页",
+                            "router":  "/project-student/dashboard",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "招募广场",
+                            "router":  "/project-student/recruitment-square",
+                            "icon":  "icon/项目.png"
+                        },
+                        {
+                            "function_name":  "我的申请",
+                            "router":  "/project-student/recruitment-applications",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "我的项目",
+                            "router":  "/project-student/recruitment-projects",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "我的论文",
+                            "router":  "/project-student/my-papers",
+                            "icon":  ""
+                        }
+                    ]
+    },
+    {
+        "key":  "projectMentor",
+        "content":  [
+                        {
+                            "function_name":  "我的首页",
+                            "router":  "/project-mentor/dashboard",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "招募广场",
+                            "router":  "/project-mentor/recruitment-square",
+                            "icon":  "icon/项目.png"
+                        },
+                        {
+                            "function_name":  "我的申请",
+                            "router":  "/project-mentor/recruitment-applications",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "我的项目",
+                            "router":  "/project-mentor/recruitment-projects",
+                            "icon":  ""
+                        },
+                        {
+                            "function_name":  "我的论文",
+                            "router":  "/project-mentor/my-papers",
+                            "icon":  ""
+                        }
+                    ]
+    }
+]

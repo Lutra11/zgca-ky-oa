@@ -1,0 +1,164 @@
+[
+  {
+    "reviewId": "RV2026001",
+    "baseConfig": {
+      "reviewId": "RV2026001",
+      "reviewName": "2026年第一次季度推进会",
+      "reviewPeriod": ["2026-07-21 09:00", "2026-07-25 18:00"],
+      "performanceReviewPeriod": ["2026-07-21 09:00", "2026-07-26 18:00"],
+      "reviewTemplateId": "tpl-review-001",
+      "noticeTemplateId": "tpl-notice-001",
+      "selectedProjects": [
+        {
+          "id": "p001",
+          "projectCode": "C2025023",
+          "projectName": "面向复杂系统的不确定性建模与智能优化方法研究",
+          "faculty": "AI4S学部",
+          "subDirection": "数学科学",
+          "principal": "张明远"
+        }
+      ],
+      "createdAt": "2026-07-20 09:00",
+      "updatedAt": "2026-07-20 09:00"
+    },
+    "assessmentPeriods": [
+      {
+        "id": "period-q1",
+        "name": "2026年第一季度推进会",
+        "startDate": "2026-01-01",
+        "endDate": "2026-03-31"
+      },
+      {
+        "id": "period-q2",
+        "name": "2026年第二季度推进会",
+        "startDate": "2026-04-01",
+        "endDate": "2026-06-30"
+      },
+      {
+        "id": "period-q3",
+        "name": "2026年第三季度推进会",
+        "startDate": "2026-07-01",
+        "endDate": "2026-09-30"
+      },
+      {
+        "id": "period-q4",
+        "name": "2026年第四季度推进会",
+        "startDate": "2026-10-01",
+        "endDate": "2026-12-31"
+      }
+    ],
+    "evaluationRules": [
+      {
+        "id": "rule-progress",
+        "name": "项目进度",
+        "percentage": 40,
+        "description": "项目完成度和进度符合预期",
+        "expanded": true,
+        "children": [
+          {
+            "id": "rule-progress-plan",
+            "name": "计划完成度",
+            "percentage": 50,
+            "description": "按计划完成的任务比例"
+          },
+          {
+            "id": "rule-progress-time",
+            "name": "时间进度",
+            "percentage": 50,
+            "description": "时间节点控制情况"
+          }
+        ]
+      },
+      {
+        "id": "rule-output",
+        "name": "研究成果",
+        "percentage": 30,
+        "description": "研究成果质量和数量",
+        "expanded": false,
+        "children": [
+          {
+            "id": "rule-output-quality",
+            "name": "成果质量",
+            "percentage": 60,
+            "description": "阶段成果质量与创新性"
+          },
+          {
+            "id": "rule-output-quantity",
+            "name": "成果数量",
+            "percentage": 40,
+            "description": "成果产出数量与完成情况"
+          }
+        ]
+      },
+      {
+        "id": "rule-budget",
+        "name": "经费使用",
+        "percentage": 30,
+        "description": "经费使用合理性",
+        "expanded": false,
+        "children": [
+          {
+            "id": "rule-budget-compliance",
+            "name": "合规性",
+            "percentage": 50,
+            "description": "经费支出合规性"
+          },
+          {
+            "id": "rule-budget-efficiency",
+            "name": "使用效率",
+            "percentage": 50,
+            "description": "经费投入产出匹配度"
+          }
+        ]
+      }
+    ],
+    "projectLevels": [
+      {
+        "id": "level-a",
+        "name": "A",
+        "percentage": 20,
+        "limit": "上限",
+        "description": "优秀"
+      },
+      {
+        "id": "level-b",
+        "name": "B",
+        "percentage": 50,
+        "limit": "不强制",
+        "description": "良好"
+      },
+      {
+        "id": "level-c",
+        "name": "C",
+        "percentage": 30,
+        "limit": "不强制",
+        "description": "及格"
+      }
+    ],
+    "reminderSettings": {
+      "materialSubmit": {
+        "enabled": true,
+        "advanceDays": 3,
+        "frequencyDays": 1,
+        "receiverGroups": ["项目负责人", "项目其他老师", "项目学生"]
+      },
+      "reviewResult": {
+        "enabled": true,
+        "advanceDays": 2,
+        "frequencyDays": 1,
+        "receiverGroups": ["评委", "子方向负责人", "科研项目管理员"]
+      },
+      "studentPerformance": {
+        "enabled": true,
+        "advanceDays": 3,
+        "frequencyDays": 1,
+        "receiverGroups": ["项目负责人", "项目成员", "学生"]
+      }
+    },
+    "materialDeadlineSetting": {
+      "daysBeforeMeeting": 1
+    },
+    "currentStep": "assessment-periods",
+    "status": "draft"
+  }
+]

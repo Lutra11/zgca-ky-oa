@@ -1,0 +1,179 @@
+{
+  "managedSubDirections": ["人工智能", "信息技术"],
+  "tasks": [
+    {
+      "id": "SDR-2026-Q1-AI",
+      "reviewName": "2026年第一季度推进会",
+      "initiator": "张晓明",
+      "initiatedAt": "2026-02-20 14:30",
+      "approver": "王主任",
+      "approvedAt": "2026-02-22 09:20",
+      "status": "待完善",
+      "reviewPeriod": ["2026-03-01 09:00", "2026-03-22 18:00"],
+      "performancePeriod": ["2026-03-01 09:00", "2026-03-22 18:00"],
+      "reviewTemplateId": "tpl-review-001",
+      "noticeTemplateId": "tpl-notice-001",
+      "subDirectionLeaderName": "王老师",
+      "ownerUsernames": ["project_leader", "ky_system"],
+      "projects": [
+        {
+          "id": "sdp-001",
+          "projectCode": "C20250202",
+          "projectName": "乳腺肿瘤智能影像手术系统及关键技术研究",
+          "projectType": "基础培育类",
+          "faculty": "AI4S学部",
+          "subDirection": "人工智能",
+          "principal": "张瑞雅",
+          "batch": "第一批",
+          "assignedReviewerIds": ["rv-001", "rv-002"],
+          "reviewStartAt": "2026-03-05 09:00",
+          "reviewEndAt": "2026-03-18 18:00",
+          "materialSubmitted": true
+        },
+        {
+          "id": "sdp-002",
+          "projectCode": "AI4S-2024-001",
+          "projectName": "大规模预训练模型优化技术研究",
+          "projectType": "重点项目类",
+          "faculty": "AI&IT学部",
+          "subDirection": "人工智能",
+          "principal": "陈静",
+          "batch": "第一批",
+          "assignedReviewerIds": [],
+          "reviewStartAt": "",
+          "reviewEndAt": "",
+          "materialSubmitted": true
+        },
+        {
+          "id": "sdp-003",
+          "projectCode": "AI4S-2024-003",
+          "projectName": "多模态融合感知系统",
+          "projectType": "自由探索类",
+          "faculty": "AI&IT学部",
+          "subDirection": "人工智能",
+          "principal": "赵敏",
+          "batch": "第一批",
+          "assignedReviewerIds": ["rv-003"],
+          "reviewStartAt": "",
+          "reviewEndAt": "",
+          "materialSubmitted": false
+        },
+        {
+          "id": "sdp-004",
+          "projectCode": "INFO-2024-001",
+          "projectName": "分布式系统容错技术研究",
+          "projectType": "基础培育类",
+          "faculty": "AI&IT学部",
+          "subDirection": "信息技术",
+          "principal": "李华",
+          "batch": "第一批",
+          "assignedReviewerIds": ["rv-001", "rv-004"],
+          "reviewStartAt": "2026-03-06 09:00",
+          "reviewEndAt": "2026-03-19 18:00",
+          "materialSubmitted": true
+        }
+      ],
+      "operationLogs": [
+        {
+          "operator": "王主任",
+          "content": "科研部负责人审批通过评审申请",
+          "time": "2026-02-22 09:20"
+        }
+      ]
+    },
+    {
+      "id": "SDR-2025-MID-AI",
+      "reviewName": "2025年度中期评审",
+      "initiator": "张晓明",
+      "initiatedAt": "2025-08-15 10:10",
+      "approver": "李主任",
+      "approvedAt": "2025-08-20 16:30",
+      "status": "进行中",
+      "reviewPeriod": ["2025-09-01 09:00", "2025-09-30 18:00"],
+      "performancePeriod": ["2025-09-01 09:00", "2025-09-30 18:00"],
+      "reviewTemplateId": "tpl-review-003",
+      "noticeTemplateId": "tpl-notice-001",
+      "subDirectionLeaderName": "王老师",
+      "ownerUsernames": ["project_leader", "ky_system"],
+      "projects": [
+        {
+          "id": "sdp-005",
+          "projectCode": "AI4S-2024-006",
+          "projectName": "联邦学习安全增强机制",
+          "projectType": "重点项目类",
+          "faculty": "AI&IT学部",
+          "subDirection": "人工智能",
+          "principal": "孙浩",
+          "batch": "第二批",
+          "assignedReviewerIds": ["rv-002", "rv-003", "rv-005"],
+          "reviewStartAt": "2025-09-05 09:00",
+          "reviewEndAt": "2025-09-24 18:00",
+          "materialSubmitted": true
+        },
+        {
+          "id": "sdp-006",
+          "projectCode": "INFO-2024-002",
+          "projectName": "云原生应用性能优化平台",
+          "projectType": "自由探索类",
+          "faculty": "AI&IT学部",
+          "subDirection": "信息技术",
+          "principal": "王强",
+          "batch": "第二批",
+          "assignedReviewerIds": ["rv-001", "rv-004"],
+          "reviewStartAt": "2025-09-05 09:00",
+          "reviewEndAt": "2025-09-24 18:00",
+          "materialSubmitted": true
+        }
+      ],
+      "operationLogs": [
+        {
+          "operator": "王老师",
+          "content": "确认开始评审",
+          "time": "2025-09-01 09:30"
+        }
+      ]
+    }
+  ],
+  "reviewerCandidates": [
+    {
+      "id": "rv-001",
+      "name": "马教授",
+      "faculty": "AI&IT学部",
+      "researchDirection": "人工智能",
+      "title": "教授",
+      "currentTaskCount": 3
+    },
+    {
+      "id": "rv-002",
+      "name": "李教授",
+      "faculty": "生命科学学部",
+      "researchDirection": "医学影像",
+      "title": "教授",
+      "currentTaskCount": 2
+    },
+    {
+      "id": "rv-003",
+      "name": "宋教授",
+      "faculty": "材料科学学部",
+      "researchDirection": "智能材料",
+      "title": "研究员",
+      "currentTaskCount": 1
+    },
+    {
+      "id": "rv-004",
+      "name": "赵工程师",
+      "faculty": "AI&IT学部",
+      "researchDirection": "信息技术",
+      "title": "高级工程师",
+      "currentTaskCount": 4
+    },
+    {
+      "id": "rv-005",
+      "name": "周博士",
+      "faculty": "AI&IT学部",
+      "researchDirection": "安全智能",
+      "title": "副研究员",
+      "currentTaskCount": 2
+    }
+  ]
+}
