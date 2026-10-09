@@ -1795,15 +1795,10 @@ const activeLeaderBatchRemainingText = computed(() =>
   activeLeaderInitiationBatch.value ? getLeaderBatchRemainingText(activeLeaderInitiationBatch.value) : '',
 )
 
-const canSubmitLeaderInitiation = computed(() => activeLeaderBatchStatus.value === '申报中')
+// 原型演示模式：无论批次状态（未开始/申报中/已结束）都保留“立即申报”入口
+const canSubmitLeaderInitiation = computed(() => true)
 
-const leaderInitiationSubmitDisabledReason = computed(() => {
-  if (!activeLeaderInitiationBatch.value || canSubmitLeaderInitiation.value) {
-    return ''
-  }
-
-  return activeLeaderBatchStatus.value === '未开始' ? '该批次尚未开始申报' : '该批次申报已截止'
-})
+const leaderInitiationSubmitDisabledReason = computed(() => '')
 
 const isProjectApplicationSubmitted = computed(() => projectApplicationForm.status === 'SUBMITTED')
 
@@ -3319,11 +3314,7 @@ function handleProjectMemberInitiationApply() {
     return
   }
 
-  if (!canSubmitLeaderInitiation.value) {
-    ElMessage.warning(leaderInitiationSubmitDisabledReason.value)
-    return
-  }
-
+  // 原型演示模式：不校验批次时间状态，任何批次都可以进入申报填写
   router.push({
     name: getRoleScopedRouteName('initiation-apply') ?? 'project-member-initiation-apply',
     params: {
