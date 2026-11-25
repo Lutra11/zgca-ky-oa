@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import {
   getCurrentUser,
@@ -464,7 +464,8 @@ const roleRoutes: RouteRecordRaw[] = roleRouteConfigs.flatMap((role) => {
 })
 
 const router = createRouter({
-  history: createWebHistory(),
+  /** GitHub Pages 静态托管无服务端回退，深链接须用 hash 路由（如 #/research-project-admin/dashboard） */
+  history: createWebHashHistory(),
   routes: [
     {
       path: '/',
