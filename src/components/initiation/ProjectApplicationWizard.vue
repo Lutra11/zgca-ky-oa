@@ -4,15 +4,15 @@ import { Back, DocumentChecked, View } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { InitiationBatchMockRow } from '../../dataset/initiationProjectsMock'
 import type { LoggedInUser } from '../../types/auth'
-import HandwrittenSignaturePad from './HandwrittenSignaturePad.vue'
 import {
   cloneWizardState,
-  createAnnualPlan,
+  createAnnualAllocations,
   createDefaultWizardState,
   createParticipantRow,
   formatFillMonth,
   loadWizardDraft,
   saveWizardDraft,
+  wizardPresetTotalBudget,
   wizardStages,
   wizardSteps,
   type ApplicationParticipant,
@@ -25,15 +25,8 @@ interface MissingResult {
   stepIndex: number
 }
 
-type BudgetAmountKey = 'equipment' | 'purchase' | 'business' | 'labor'
-type BudgetNoteKey = 'equipmentNote' | 'purchaseNote' | 'businessNote' | 'laborNote'
-
-interface BudgetRow {
-  key: BudgetAmountKey
-  noteKey: BudgetNoteKey
-  subject: string
-  tip: string
-}
+const FIXED_PACKAGE_NOTE =
+  '本批次项目按包干制科研项目管理，无需编制明细预算，由项目负责人根据科研实际需要统筹安排使用。实际经费使用需按设备费、业务费、劳务费（比例不得超过项目总经费的 30%）三类科目列支，不设间接费用。'
 
 const props = defineProps<{
   batch: InitiationBatchMockRow
@@ -58,33 +51,16 @@ let hydrating = false
 
 const genderOptions = ['男', '女', '其他']
 const educationOptions = ['博士研究生', '博士', '硕士研究生', '硕士', '本科']
-const projectDirectionOptions = ['AI核心', 'AI × 科学技术', 'AI × 人文社科'] as const
-const budgetRows: BudgetRow[] = [
-  {
-    key: 'equipment',
-    noteKey: 'equipmentNote',
-    subject: '1. 设备费',
-    tip: '例如：设备费总额 X 万元，其中学院算力配额外租用算力 X 万元',
-  },
-  {
-    key: 'purchase',
-    noteKey: 'purchaseNote',
-    subject: '其中：设备购置费',
-    tip: '设备购置费属于设备费明细，不重复计入预算合计',
-  },
-  {
-    key: 'business',
-    noteKey: 'businessNote',
-    subject: '2. 业务费',
-    tip: '例如：材料费 X 万元、差旅费 X 万元、会议费 X 万元',
-  },
-  {
-    key: 'labor',
-    noteKey: 'laborNote',
-    subject: '3. 劳务费',
-    tip: '劳务费原则上不超过预算总额的 30%',
-  },
-]
+const departmentOptions = ['人工智能学部', '理学部', '工学部', '人文与社会科学学部', '经济管理学部']
+const subdirectionOptions: Record<string, string[]> = {
+  人工智能学部: ['AI核心', 'AI × 科学技术', 'AI × 人文社科', 'AI × 产业应用'],
+  理学部: ['数学', '物理', '化学', '生命科学'],
+  工学部: ['智能制造', '能源环境', '集成电路', '生物医学工程'],
+  人文与社会科学学部: ['法学', '教育学', '新闻传播学', '心理学'],
+  经济管理学部: ['理论经济学', '应用经济学', '工商管理学', '公共管理学'],
+}
+const pptAccept = '.ppt,.pptx,.pdf'
+const pptMaxSizeMb = 100
 
 const batchDisplayName = computed(() => props.batch.batch_name ?? props.batch.batchName)
 const batchDisplayCode = computed(() => props.batch.batch_code ?? props.batch.batchCode)
@@ -93,19 +69,7 @@ const currentStepDefinition = computed(() => wizardSteps[activeStep.value])
 const currentStageIndex = computed(() =>
   wizardStages.findIndex((stage) => stage.steps.includes(activeStep.value)),
 )
-const budgetTotal = computed(() => {
-  return normalizeMoney(application.budget.equipment) +
-    normalizeMoney(application.budget.business) +
-    normalizeMoney(application.budget.labor)
-})
-const laborRatio = computed(() => {
-  if (budgetTotal.value <= 0) {
-    return 0
-  }
-
-  return (normalizeMoney(application.budget.labor) / budgetTotal.value) * 100
-})
-const isLaborRatioInvalid = computed(() => laborRatio.value > 30)
+const subdirectionChoices = computed(() => subdirectionOptions[application.department] ?? [])
 const overallCompletion = computed(() => {
   const total = wizardSteps.reduce((sum, _step, index) => sum + getStepCompletion(index), 0)
 
@@ -133,74 +97,50 @@ const previewSections = computed(() => [
   {
     title: '基本信息表',
     body: [
-      `项目方向：${displayText(application.projectDirection)}`,
-      `项目类别：${displayText(application.projectCategory)}`,
-      `单位名称：${displayText(application.unitName)}`,
-      `申请人：${displayText(application.applicantName)}`,
+      `所属学部：${displayText(application.department)}`,
+      `所属子方向：${displayText(application.subdirection)}`,
+      `类别：${displayText(application.projectCategory)}`,
       `研究周期：${application.researchPeriod || '尚未填写'} 年`,
-      `首年经费预算：${application.firstYearBudget || 0} 万元`,
+      `首年经费：${application.firstYearBudget || 0} 万元`,
       `内容摘要：${displayText(application.abstract)}`,
+      `答辩 PPT：${displayText(application.defensePptName)}`,
+    ].join('\n'),
+  },
+  {
+    title: '申请人信息',
+    body: [
+      `单位名称：${displayText(application.unitName)}`,
+      `姓名：${displayText(application.applicantName)}`,
+      `性别：${displayText(application.gender)}`,
+      `出生年月：${displayText(application.birthMonth)}`,
+      `学历：${displayText(application.education)}`,
+      `职称：${displayText(application.professionalTitle)}`,
+      `手机/电话：${displayText(application.mobile)}`,
+      `邮箱：${displayText(application.email)}`,
     ].join('\n'),
   },
   {
     title: '一、研究目的和意义简述',
-    body: [application.purposeSignificance, application.researchStatus].filter(Boolean).join('\n\n'),
+    body: application.researchPurpose,
   },
   {
     title: '二、主要研究内容',
-    body: [
-      application.mainWork,
-      application.keyProblem,
-      application.technicalDifficulty,
-      application.technicalRoute,
-      application.methodInnovation,
-    ]
-      .filter(Boolean)
-      .join('\n\n'),
+    body: application.mainResearchContent,
   },
   {
     title: '三、研究基础',
-    body: [
-      application.applicantBackground,
-      application.researchFoundation,
-      application.teamProfile,
-      application.implementationExperience,
-    ]
-      .filter(Boolean)
-      .join('\n\n'),
+    body: application.researchFoundation,
   },
   {
     title: '四、年度研究任务和实施方案',
-    body: application.annualPlans
-      .map((plan) =>
-        [
-          plan.yearLabel,
-          plan.researchTasks,
-          plan.implementationPlan,
-          plan.cooperationMode,
-          plan.studentTrainingGoal,
-        ]
-          .filter(Boolean)
-          .join('\n'),
-      )
-      .filter(Boolean)
-      .join('\n\n'),
+    body: application.annualTasks,
   },
   {
     title: '五、总体考核指标',
-    body: [
-      application.overallGoal,
-      application.annualGoal,
-      application.expectedOutcomes,
-      application.impact,
-      application.talentDevelopment,
-      application.otherIndicators,
-    ]
-      .filter(Boolean)
-      .join('\n\n'),
+    body: application.assessmentIndicators,
   },
   {
-    title: '六、参加人员名单',
+    title: '参加人员名单',
     body: application.participants
       .map((member) =>
         `${member.category}：${displayText(member.name)} / ${displayText(member.unit)} / ${displayText(member.responsibility)}`,
@@ -208,30 +148,20 @@ const previewSections = computed(() => [
       .join('\n'),
   },
   {
-    title: '七、经费预算表',
-    body: `设备费 ${formatMoney(application.budget.equipment)} 万元；其中设备购置费 ${formatMoney(application.budget.purchase)} 万元；业务费 ${formatMoney(application.budget.business)} 万元；劳务费 ${formatMoney(application.budget.labor)} 万元。预算合计 ${formatMoney(budgetTotal.value)} 万元。`,
+    title: '项目预算明细',
+    body: `项目总预算 ${formatMoney(application.totalBudget)} 万元（PMO 预设，包干制，无需填写预算明细）\n包干说明：${packageNoteText}`,
   },
   {
-    title: '八、算力说明',
-    body:
-      application.specialCompute === 'no'
-        ? '无特殊算力需求。'
-        : [
-            application.computeScale,
-            application.computePeriod,
-            application.computeEnvironment,
-            application.computePurposeReason,
-          ]
-            .filter(Boolean)
-            .join('\n'),
-  },
-  {
-    title: '九、项目经费使用承诺书',
+    title: '项目经费使用承诺书',
     body: application.consent
-      ? '已阅读并确认承诺书内容，签名信息将渲染到正式申报书。'
+      ? `已在线确认承诺书内容，确认人：${application.applicantName || '[姓名]'}，确认时间：${application.consentConfirmedAt || '刚刚'}${
+          application.jointEnabled ? `；联合项目负责人：${displayText(application.jointLeaderName)}` : ''
+        }`
       : '尚未确认承诺书。',
   },
 ])
+
+const packageNoteText = FIXED_PACKAGE_NOTE
 
 watch(
   () => [props.batch.id, props.currentUser?.id],
@@ -244,14 +174,16 @@ watch(
 )
 
 watch(
-  () => [
-    application.applicantName,
-    application.unitName,
-    application.gender,
-    application.professionalTitle,
-  ],
+  () => [application.applicantName, application.unitName, application.gender, application.professionalTitle],
   () => {
     syncLeaderParticipant()
+  },
+)
+
+watch(
+  () => application.researchPeriod,
+  (period) => {
+    application.annualAllocations = createAnnualAllocations(period)
   },
 )
 
@@ -310,13 +242,17 @@ function saveDraft(showMessage = true) {
   }
 }
 
+function goToStep(index: number) {
+  saveDraft(false)
+  activeStep.value = Math.max(0, Math.min(wizardSteps.length - 1, index))
+}
+
 function saveCurrentStep() {
   saveDraft(true)
 }
 
-function goToStep(index: number) {
-  saveDraft(false)
-  activeStep.value = Math.max(0, Math.min(wizardSteps.length - 1, index))
+function richtextCharCount(value: string | undefined) {
+  return (value ?? '').length
 }
 
 function goPrevStep() {
@@ -377,32 +313,19 @@ function validateApplication() {
       message: '内容摘要不能超过 400 字',
     },
     {
-      stepIndex: 1,
-      valid: getChapterLength(['purposeSignificance', 'researchStatus']) <= 1500,
-      message: '第一章合计不能超过 1500 字',
+      stepIndex: 2,
+      valid: getLength('researchPurpose') <= 1500,
+      message: '一、研究目的和意义简述不能超过 1500 字',
     },
     {
       stepIndex: 2,
-      valid:
-        getChapterLength([
-          'mainWork',
-          'keyProblem',
-          'technicalDifficulty',
-          'technicalRoute',
-          'methodInnovation',
-        ]) <= 1500,
-      message: '第二章合计不能超过 1500 字',
+      valid: getLength('mainResearchContent') <= 1500,
+      message: '二、主要研究内容不能超过 1500 字',
     },
     {
-      stepIndex: 3,
-      valid:
-        getChapterLength([
-          'applicantBackground',
-          'researchFoundation',
-          'teamProfile',
-          'implementationExperience',
-        ]) <= 1000,
-      message: '第三章合计不能超过 1000 字',
+      stepIndex: 2,
+      valid: getLength('researchFoundation') <= 1000,
+      message: '三、研究基础不能超过 1000 字',
     },
   ].find((item) => !item.valid)
 
@@ -411,29 +334,6 @@ function validateApplication() {
       firstStep: overLimit.stepIndex,
       invalidSteps: new Set([overLimit.stepIndex]),
       message: overLimit.message,
-    }
-  }
-
-  const budgetValues = [
-    application.budget.equipment,
-    application.budget.purchase,
-    application.budget.business,
-    application.budget.labor,
-  ]
-
-  if (budgetValues.some((value) => normalizeMoney(value) < 0)) {
-    return {
-      firstStep: 7,
-      invalidSteps: new Set([7]),
-      message: '预算金额不能为负数',
-    }
-  }
-
-  if (isLaborRatioInvalid.value) {
-    return {
-      firstStep: 7,
-      invalidSteps: new Set([7]),
-      message: '劳务费占比不能超过预算总额的 30%',
     }
   }
 
@@ -467,21 +367,25 @@ function getStepCompletion(index: number) {
   }
 
   const filled = requiredValues.filter(isFilled).length
-  const percent = Math.round((filled / total) * 100)
 
-  if (index === 7 && isLaborRatioInvalid.value) {
-    return Math.min(percent, 90)
-  }
-
-  return percent
+  return Math.round((filled / total) * 100)
 }
 
 function getStepRequiredValues(index: number): unknown[] {
   if (index === 0) {
     return [
       application.projectName,
-      application.projectDirection,
+      application.department,
+      application.subdirection,
       application.projectCategory,
+      application.researchPeriod,
+      application.firstYearBudget,
+      application.abstract,
+    ]
+  }
+
+  if (index === 1) {
+    return [
       application.unitName,
       application.applicantName,
       application.gender,
@@ -490,57 +394,20 @@ function getStepRequiredValues(index: number): unknown[] {
       application.professionalTitle,
       application.mobile,
       application.email,
-      application.researchPeriod,
-      application.firstYearBudget,
-      application.abstract,
     ]
-  }
-
-  if (index === 1) {
-    return [application.purposeSignificance, application.researchStatus]
   }
 
   if (index === 2) {
     return [
-      application.mainWork,
-      application.keyProblem,
-      application.technicalDifficulty,
-      application.technicalRoute,
-      application.methodInnovation,
+      application.researchPurpose,
+      application.mainResearchContent,
+      application.researchFoundation,
+      application.annualTasks,
+      application.assessmentIndicators,
     ]
   }
 
   if (index === 3) {
-    return [
-      application.applicantBackground,
-      application.researchFoundation,
-      application.teamProfile,
-      application.implementationExperience,
-    ]
-  }
-
-  if (index === 4) {
-    return application.annualPlans.flatMap((plan) => [
-      plan.yearLabel,
-      plan.researchTasks,
-      plan.implementationPlan,
-      plan.cooperationMode,
-      plan.studentTrainingGoal,
-    ])
-  }
-
-  if (index === 5) {
-    return [
-      application.overallGoal,
-      application.annualGoal,
-      application.expectedOutcomes,
-      application.impact,
-      application.talentDevelopment,
-      application.otherIndicators,
-    ]
-  }
-
-  if (index === 6) {
     return application.participants.flatMap((participant) => [
       participant.name,
       participant.unit,
@@ -551,48 +418,15 @@ function getStepRequiredValues(index: number): unknown[] {
     ])
   }
 
-  if (index === 7) {
-    return [
-      application.budget.equipment,
-      application.budget.equipmentNote,
-      application.budget.purchase,
-      application.budget.purchaseNote,
-      application.budget.business,
-      application.budget.businessNote,
-      application.budget.labor,
-      application.budget.laborNote,
-    ]
+  if (index === 4) {
+    return [application.totalBudget]
   }
 
-  if (index === 8) {
-    if (application.specialCompute === 'no') {
-      return [application.specialCompute]
-    }
-
-    return [
-      application.specialCompute,
-      application.computeScale,
-      application.computePeriod,
-      application.computeEnvironment,
-      application.computePurposeReason,
-    ]
-  }
-
-  if (index === 9) {
-    const requiredValues: unknown[] = [
-      application.leaderIdCard,
-      application.consent,
-      application.leaderSignatureDataUrl,
-      application.leaderSignDate,
-    ]
+  if (index === 6) {
+    const requiredValues: unknown[] = [application.consent]
 
     if (application.jointEnabled) {
-      requiredValues.push(
-        application.jointName,
-        application.jointIdCard,
-        application.jointSignatureDataUrl,
-        application.jointSignDate,
-      )
+      requiredValues.push(application.jointLeaderName)
     }
 
     return requiredValues
@@ -606,19 +440,11 @@ function getStepMissing(index: number): MissingResult[] {
 
   if (index === 0) {
     pushMissing(missing, application.projectName, '项目名称')
-    pushMissing(missing, application.projectDirection, '项目方向')
-    pushMissing(missing, application.projectCategory, '项目类别')
-    pushMissing(missing, application.unitName, '单位名称')
-    pushMissing(missing, application.applicantName, '姓名')
-    pushMissing(missing, application.gender, '性别')
-    pushMissing(missing, application.birthMonth, '出生年月')
-    pushMissing(missing, application.education, '学历')
-    pushMissing(missing, application.professionalTitle, '职称')
-    pushMissing(missing, application.mobile, '手机')
-    pushMissing(missing, application.email, '邮箱')
+    pushMissing(missing, application.department, '所属学部')
+    pushMissing(missing, application.subdirection, '所属子方向')
+    pushMissing(missing, application.projectCategory, '类别')
     pushMissing(missing, application.researchPeriod, '研究周期')
-    pushMissing(missing, application.firstYearBudget, '首年经费预算')
-    pushMissing(missing, application.abstract, '内容摘要')
+        pushMissing(missing, application.abstract, '内容摘要')
 
     if (application.abstract.length > 400) {
       missing.push('内容摘要超过 400 字')
@@ -626,74 +452,33 @@ function getStepMissing(index: number): MissingResult[] {
   }
 
   if (index === 1) {
-    pushMissing(missing, application.purposeSignificance, '研究目的和意义')
-    pushMissing(missing, application.researchStatus, '国内外研究现状')
-
-    if (getChapterLength(['purposeSignificance', 'researchStatus']) > 1500) {
-      missing.push('第一章合计超过 1500 字')
-    }
+    pushMissing(missing, application.unitName, '单位名称')
+    pushMissing(missing, application.applicantName, '姓名')
+    pushMissing(missing, application.mobile, '手机/电话')
+    pushMissing(missing, application.email, '邮箱')
   }
 
   if (index === 2) {
-    pushMissing(missing, application.mainWork, '主要工作内容')
-    pushMissing(missing, application.keyProblem, '关键科学问题')
-    pushMissing(missing, application.technicalDifficulty, '主要技术难点')
-    pushMissing(missing, application.technicalRoute, '技术路线')
-    pushMissing(missing, application.methodInnovation, '方法创新')
+    pushMissing(missing, application.researchPurpose, '一、研究目的和意义简述')
+    pushMissing(missing, application.mainResearchContent, '二、主要研究内容')
+    pushMissing(missing, application.researchFoundation, '三、研究基础')
+    pushMissing(missing, application.annualTasks, '四、年度研究任务和实施方案')
+    pushMissing(missing, application.assessmentIndicators, '五、总体考核指标')
 
-    if (
-      getChapterLength([
-        'mainWork',
-        'keyProblem',
-        'technicalDifficulty',
-        'technicalRoute',
-        'methodInnovation',
-      ]) > 1500
-    ) {
-      missing.push('第二章合计超过 1500 字')
+    if (getLength('researchPurpose') > 1500) {
+      missing.push('一、研究目的和意义简述超过 1500 字')
+    }
+
+    if (getLength('mainResearchContent') > 1500) {
+      missing.push('二、主要研究内容超过 1500 字')
+    }
+
+    if (getLength('researchFoundation') > 1000) {
+      missing.push('三、研究基础超过 1000 字')
     }
   }
 
   if (index === 3) {
-    pushMissing(missing, application.applicantBackground, '申请人工作背景')
-    pushMissing(missing, application.researchFoundation, '申请人研究基础')
-    pushMissing(missing, application.teamProfile, '科研团队情况')
-    pushMissing(missing, application.implementationExperience, '科研项目组织实施经验')
-
-    if (
-      getChapterLength([
-        'applicantBackground',
-        'researchFoundation',
-        'teamProfile',
-        'implementationExperience',
-      ]) > 1000
-    ) {
-      missing.push('第三章合计超过 1000 字')
-    }
-  }
-
-  if (index === 4) {
-    application.annualPlans.forEach((plan, planIndex) => {
-      const prefix = plan.yearLabel || `第${planIndex + 1}年度`
-
-      pushMissing(missing, plan.yearLabel, `${prefix}：年度名称`)
-      pushMissing(missing, plan.researchTasks, `${prefix}：主要研究任务`)
-      pushMissing(missing, plan.implementationPlan, `${prefix}：实施方案`)
-      pushMissing(missing, plan.cooperationMode, `${prefix}：研究计划及合作方式`)
-      pushMissing(missing, plan.studentTrainingGoal, `${prefix}：项目学生培养目标`)
-    })
-  }
-
-  if (index === 5) {
-    pushMissing(missing, application.overallGoal, '总目标')
-    pushMissing(missing, application.annualGoal, '年度目标')
-    pushMissing(missing, application.expectedOutcomes, '预期成果')
-    pushMissing(missing, application.impact, '社会、学术或产业影响力')
-    pushMissing(missing, application.talentDevelopment, '人才队伍建设')
-    pushMissing(missing, application.otherIndicators, '其他指标')
-  }
-
-  if (index === 6) {
     const completedMembers = application.participants.filter((participant) =>
       participant.category === '成员' && isParticipantCompleted(participant),
     )
@@ -714,43 +499,11 @@ function getStepMissing(index: number): MissingResult[] {
     })
   }
 
-  if (index === 7) {
-    pushMissing(missing, application.budget.equipment, '设备费')
-    pushMissing(missing, application.budget.equipmentNote, '设备费测算说明')
-    pushMissing(missing, application.budget.purchase, '设备购置费')
-    pushMissing(missing, application.budget.purchaseNote, '设备购置费说明')
-    pushMissing(missing, application.budget.business, '业务费')
-    pushMissing(missing, application.budget.businessNote, '业务费测算说明')
-    pushMissing(missing, application.budget.labor, '劳务费')
-    pushMissing(missing, application.budget.laborNote, '劳务费测算说明')
-
-    if (isLaborRatioInvalid.value) {
-      missing.push('劳务费占比超过 30%')
-    }
-  }
-
-  if (index === 8) {
-    pushMissing(missing, application.specialCompute, '是否存在特殊算力需求')
-
-    if (application.specialCompute === 'yes') {
-      pushMissing(missing, application.computeScale, '算力规模')
-      pushMissing(missing, application.computePeriod, '使用周期')
-      pushMissing(missing, application.computeEnvironment, '特殊环境')
-      pushMissing(missing, application.computePurposeReason, '用途和原因')
-    }
-  }
-
-  if (index === 9) {
-    pushMissing(missing, application.leaderIdCard, '项目负责人身份证号')
-    pushMissing(missing, application.consent, '已阅读并同意')
-    pushMissing(missing, application.leaderSignatureDataUrl, '项目负责人手写签名')
-    pushMissing(missing, application.leaderSignDate, '项目负责人签名日期')
+  if (index === 6) {
+    pushMissing(missing, application.consent, '承诺书在线确认')
 
     if (application.jointEnabled) {
-      pushMissing(missing, application.jointName, '联合项目负责人姓名')
-      pushMissing(missing, application.jointIdCard, '联合项目负责人身份证号')
-      pushMissing(missing, application.jointSignatureDataUrl, '联合项目负责人手写签名')
-      pushMissing(missing, application.jointSignDate, '联合项目负责人签名日期')
+      pushMissing(missing, application.jointLeaderName, '联合项目负责人姓名')
     }
   }
 
@@ -772,7 +525,7 @@ function isFilled(value: unknown) {
   }
 
   if (typeof value === 'number') {
-    return Number.isFinite(value)
+    return Number.isFinite(value) && value !== 0
   }
 
   return value !== null && value !== undefined && String(value).trim() !== ''
@@ -865,19 +618,6 @@ function getStepTagText(index: number) {
   return '待填写'
 }
 
-function addAnnualPlan() {
-  application.annualPlans.push(createAnnualPlan(application.annualPlans.length + 1))
-}
-
-function removeAnnualPlan(index: number) {
-  if (application.annualPlans.length <= 1) {
-    ElMessage.warning('至少保留一个年度计划')
-    return
-  }
-
-  application.annualPlans.splice(index, 1)
-}
-
 function addParticipant() {
   application.participants.push(createParticipantRow())
 }
@@ -904,30 +644,33 @@ function syncLeaderParticipant() {
   }
 }
 
-function handleLeaderSignatureSaved(_blob: Blob, dataUrl: string) {
-  application.leaderSignatureDataUrl = dataUrl
-  saveDraft(false)
+function handlePptChange(_file: unknown, fileList: { name: string }[]) {
+  application.defensePptName = fileList[0]?.name ?? ''
 }
 
-function handleJointSignatureSaved(_blob: Blob, dataUrl: string) {
-  application.jointSignatureDataUrl = dataUrl
-  saveDraft(false)
+function handlePptRemove() {
+  application.defensePptName = ''
 }
 
-function handleLeaderSignatureClear() {
-  application.leaderSignatureDataUrl = ''
+function handlePptExceed() {
+  ElMessage.warning('仅支持上传一个答辩 PPT 附件')
 }
 
-function handleJointSignatureClear() {
-  application.jointSignatureDataUrl = ''
+function beforePptUpload(file: File) {
+  if (file.size > pptMaxSizeMb * 1024 * 1024) {
+    ElMessage.error(`附件不能超过 ${pptMaxSizeMb}MB`)
+    return false
+  }
+
+  return false
 }
 
-function handleBudgetAmountChange(key: BudgetAmountKey, value: number | undefined) {
-  application.budget[key] = value ?? 0
-}
-
-function handleBudgetNoteChange(key: BudgetNoteKey, value: string) {
-  application.budget[key] = value
+function handleConsentChange(value: boolean) {
+  if (value) {
+    application.consentConfirmedAt = `${formatFillMonth(application.fillDate)}（系统记录）`
+  } else {
+    application.consentConfirmedAt = ''
+  }
 }
 
 function normalizeMoney(value: number) {
@@ -938,8 +681,8 @@ function formatMoney(value: number) {
   return normalizeMoney(value).toFixed(2)
 }
 
-function getChapterLength(keys: Array<keyof ProjectApplicationWizardState>) {
-  return keys.reduce((sum, key) => sum + String(application[key] ?? '').length, 0)
+function getLength(key: keyof ProjectApplicationWizardState) {
+  return String(application[key] ?? '').length
 }
 
 function displayText(value: unknown) {
@@ -970,7 +713,6 @@ function displayText(value: unknown) {
     <section class="wizard-stage-card" aria-label="归并阶段">
       <header>
         <strong>申报填写流程</strong>
-        <span>系统按章节保存，完成当前步骤后可继续下一步</span>
       </header>
 
       <div class="wizard-stage-flow">
@@ -980,11 +722,8 @@ function displayText(value: unknown) {
           class="wizard-stage-item"
           :class="getStageClass(stageIndex, stage.steps)"
         >
+          <strong>{{ stage.name }}</strong>
           <span class="wizard-stage-dot">{{ stage.steps.every((step) => getStepCompletion(step) === 100) ? '✓' : stageIndex + 1 }}</span>
-          <div>
-            <strong>{{ stage.name }}</strong>
-            <small>{{ stage.note }}</small>
-          </div>
         </div>
       </div>
     </section>
@@ -992,7 +731,6 @@ function displayText(value: unknown) {
     <section class="wizard-workspace">
       <aside class="wizard-panel wizard-step-panel">
         <h2>申报书目录</h2>
-        <p>共 10 个填写步骤。点击章节可返回修改，状态会随填写情况自动更新。</p>
 
         <div class="wizard-step-list">
           <button
@@ -1016,7 +754,6 @@ function displayText(value: unknown) {
           <div>
             <span>步骤 {{ activeStep + 1 }} / {{ wizardSteps.length }}</span>
             <h2>{{ currentStepDefinition.title }}</h2>
-            <p>{{ currentStepDefinition.guide }}</p>
           </div>
           <el-tag :type="getStepTagType(activeStep)" effect="light">
             {{ getStepTagText(activeStep) }}
@@ -1026,63 +763,126 @@ function displayText(value: unknown) {
         <el-form class="wizard-form-body" label-position="top" :model="application">
           <template v-if="activeStep === 0">
             <section class="wizard-form-section">
-              <h3>项目基本资料</h3>
+              <h3>项目基本信息</h3>
               <div class="wizard-form-grid">
-                <el-form-item label="项目名称" required>
+                <el-form-item label="项目名称" class="full" required>
                   <el-input v-model.trim="application.projectName" maxlength="100" show-word-limit />
                 </el-form-item>
 
-                <el-form-item label="项目方向" required>
-                  <el-radio-group v-model="application.projectDirection">
-                    <el-radio-button
-                      v-for="direction in projectDirectionOptions"
-                      :key="direction"
-                      :value="direction"
-                    >
-                      {{ direction }}
-                    </el-radio-button>
-                  </el-radio-group>
+                <el-form-item label="所属学部" required>
+                  <el-select v-model="application.department" placeholder="请选择所属学部">
+                    <el-option
+                      v-for="department in departmentOptions"
+                      :key="department"
+                      :label="department"
+                      :value="department"
+                    />
+                  </el-select>
                 </el-form-item>
 
-                <el-form-item label="项目类别">
+                <el-form-item label="所属子方向" required>
+                  <el-select v-model="application.subdirection" placeholder="请选择所属子方向">
+                    <el-option
+                      v-for="subdirection in subdirectionChoices"
+                      :key="subdirection"
+                      :label="subdirection"
+                      :value="subdirection"
+                    />
+                  </el-select>
+                </el-form-item>
+
+                <el-form-item label="类别" required>
                   <el-input v-model="application.projectCategory" disabled>
-                    <template #append>由批次自动带入</template>
+                    <template #append>与批次信息同步，不可修改</template>
                   </el-input>
                 </el-form-item>
 
-                <el-form-item label="单位名称" required>
-                  <el-input v-model.trim="application.unitName" />
+                <el-form-item label="研究周期" required>
+                  <el-input-number v-model="application.researchPeriod" :min="1" :max="5" controls-position="right" />
+                  <span class="wizard-unit-text">年</span>
                 </el-form-item>
-              </div>
+
+                </div>
             </section>
 
             <section class="wizard-form-section">
+              <h3>内容摘要</h3>
+              <el-form-item label="内容摘要" required>
+                <div class="rich-editor" aria-label="内容摘要富文本编辑器">
+                  <div class="rich-editor-toolbar" role="toolbar" aria-label="富文本工具栏">
+                    <el-tooltip content="加粗" placement="top">
+                      <button type="button" class="rich-editor-btn" aria-label="加粗"><strong>B</strong></button>
+                    </el-tooltip>
+                    <el-tooltip content="斜体" placement="top">
+                      <button type="button" class="rich-editor-btn" aria-label="斜体"><em>I</em></button>
+                    </el-tooltip>
+                    <el-tooltip content="下划线" placement="top">
+                      <button type="button" class="rich-editor-btn" aria-label="下划线"><ins>U</ins></button>
+                    </el-tooltip>
+                    <span class="rich-editor-divider" />
+                    <el-tooltip content="无序列表" placement="top">
+                      <button type="button" class="rich-editor-btn" aria-label="无序列表">•≡</button>
+                    </el-tooltip>
+                    <el-tooltip content="有序列表" placement="top">
+                      <button type="button" class="rich-editor-btn" aria-label="有序列表">1.</button>
+                    </el-tooltip>
+                    <span class="rich-editor-divider" />
+                    <el-tooltip content="插入图片" placement="top">
+                      <button type="button" class="rich-editor-btn" aria-label="插入图片">🖼️</button>
+                    </el-tooltip>
+                    <el-tooltip content="清除格式" placement="top">
+                      <button type="button" class="rich-editor-btn" aria-label="清除格式">✕</button>
+                    </el-tooltip>
+                  </div>
+                  <el-input
+                    v-model="application.abstract"
+                    type="textarea"
+                    :rows="6"
+                    placeholder="概述项目研究对象、核心问题、主要方法和预期价值。"
+                    class="rich-editor-body"
+                  />
+                </div>
+              </el-form-item>
+            </section>
+
+          </template>
+
+          <template v-else-if="activeStep === 1">
+            <section class="wizard-form-section">
               <h3>申请人信息</h3>
+              <p class="wizard-section-tip">以下信息从人员主数据自动带出，允许补充修改。</p>
               <div class="wizard-form-grid three">
-                <el-form-item label="姓名" required>
-                  <el-input v-model.trim="application.applicantName" disabled>
-                    <template #append>系统带入</template>
+                <el-form-item label="单位名称">
+                  <el-input v-model.trim="application.unitName" disabled>
+                    <template #append>主数据带出</template>
                   </el-input>
                 </el-form-item>
 
-                <el-form-item label="性别" required>
-                  <el-select v-model="application.gender" placeholder="请选择">
+                <el-form-item label="姓名">
+                  <el-input v-model.trim="application.applicantName" disabled>
+                    <template #append>主数据带出</template>
+                  </el-input>
+                </el-form-item>
+
+                <el-form-item label="性别">
+                  <el-select v-model="application.gender" disabled placeholder="请选择">
                     <el-option v-for="gender in genderOptions" :key="gender" :label="gender" :value="gender" />
                   </el-select>
                 </el-form-item>
 
-                <el-form-item label="出生年月" required>
+                <el-form-item label="出生年月">
                   <el-date-picker
                     v-model="application.birthMonth"
                     type="month"
                     value-format="YYYY-MM"
                     format="YYYY-MM"
                     placeholder="请选择出生年月"
+                    disabled
                   />
                 </el-form-item>
 
-                <el-form-item label="学历" required>
-                  <el-select v-model="application.education" placeholder="请选择">
+                <el-form-item label="学历">
+                  <el-select v-model="application.education" disabled placeholder="请选择">
                     <el-option
                       v-for="education in educationOptions"
                       :key="education"
@@ -1092,253 +892,221 @@ function displayText(value: unknown) {
                   </el-select>
                 </el-form-item>
 
-                <el-form-item label="职称" required>
-                  <el-input v-model.trim="application.professionalTitle" placeholder="如：副研究员" />
+                <el-form-item label="职称">
+                  <el-input v-model.trim="application.professionalTitle" disabled>
+                    <template #append>主数据带出</template>
+                  </el-input>
                 </el-form-item>
 
-                <el-form-item label="手机" required>
-                  <el-input v-model.trim="application.mobile" />
-                </el-form-item>
-
-                <el-form-item label="电话">
-                  <el-input v-model.trim="application.telephone" placeholder="可填写办公电话" />
+                <el-form-item label="手机/电话" required>
+                  <el-input v-model.trim="application.mobile" placeholder="可修改，用于联络" />
                 </el-form-item>
 
                 <el-form-item label="邮箱" required>
-                  <el-input v-model.trim="application.email" />
-                </el-form-item>
-
-                <el-form-item label="研究周期" required>
-                  <el-input-number v-model="application.researchPeriod" :min="1" :max="5" controls-position="right" />
-                  <span class="wizard-unit-text">年</span>
-                </el-form-item>
-
-                <el-form-item label="首年经费预算" required>
-                  <el-input-number
-                    v-model="application.firstYearBudget"
-                    :min="0"
-                    :precision="2"
-                    :step="1"
-                    controls-position="right"
-                  />
-                  <span class="wizard-unit-text">万元</span>
+                  <el-input v-model.trim="application.email" placeholder="可修改，用于联络" />
                 </el-form-item>
               </div>
-            </section>
-
-            <section class="wizard-form-section">
-              <h3>内容摘要</h3>
-              <el-form-item label="项目内容摘要" required>
-                <el-input
-                  v-model="application.abstract"
-                  type="textarea"
-                  maxlength="400"
-                  show-word-limit
-                  :rows="6"
-                  placeholder="概述项目研究对象、核心问题、主要方法和预期价值。"
-                />
-              </el-form-item>
-            </section>
-
-            <el-alert
-              title="封面字段无需重复填写"
-              description="项目名称、项目负责人和填报月份会根据本页信息自动同步到申报书封面。"
-              type="info"
-              :closable="false"
-              show-icon
-            />
-          </template>
-
-          <template v-else-if="activeStep === 1">
-            <section class="wizard-form-section">
-              <h3>研究目的和意义</h3>
-              <p class="wizard-section-tip">两项合计不超过 1500 字。</p>
-              <div class="wizard-form-grid">
-                <el-form-item label="研究目的和意义" required>
-                  <el-input v-model="application.purposeSignificance" type="textarea" :rows="8" />
-                </el-form-item>
-                <el-form-item label="国内外研究现状" required>
-                  <el-input v-model="application.researchStatus" type="textarea" :rows="8" />
-                </el-form-item>
-              </div>
-              <p :class="['wizard-count-line', { over: getChapterLength(['purposeSignificance', 'researchStatus']) > 1500 }]">
-                本章合计 {{ getChapterLength(['purposeSignificance', 'researchStatus']) }} / 1500 字
-              </p>
             </section>
           </template>
 
           <template v-else-if="activeStep === 2">
             <section class="wizard-form-section">
-              <h3>研究内容与核心问题</h3>
-              <p class="wizard-section-tip">本章合计不超过 1500 字。</p>
-              <div class="wizard-form-grid">
-                <el-form-item label="主要工作内容" required>
-                  <el-input v-model="application.mainWork" type="textarea" :rows="6" />
-                </el-form-item>
-                <el-form-item label="关键科学问题" required>
-                  <el-input v-model="application.keyProblem" type="textarea" :rows="6" />
-                </el-form-item>
-                <el-form-item label="主要技术难点" required>
-                  <el-input v-model="application.technicalDifficulty" type="textarea" :rows="5" />
-                </el-form-item>
-                <el-form-item label="技术路线" required>
-                  <el-input v-model="application.technicalRoute" type="textarea" :rows="5" />
-                </el-form-item>
-                <el-form-item label="方法创新" class="full" required>
-                  <el-input v-model="application.methodInnovation" type="textarea" :rows="5" />
-                </el-form-item>
+              <h3>一、研究目的和意义简述（≤1500字）</h3>
+              <div class="wizard-richtext-demo">
+                <div class="wizard-richtext-toolbar" role="toolbar" aria-label="富文本工具栏">
+                  <el-tooltip content="加粗" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn is-active"><strong>B</strong></button>
+                  </el-tooltip>
+                  <el-tooltip content="斜体" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn"><em>I</em></button>
+                  </el-tooltip>
+                  <el-tooltip content="下划线" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn"><span style="text-decoration: underline">U</span></button>
+                  </el-tooltip>
+                  <span class="wizard-richtext-divider"></span>
+                  <el-tooltip content="项目符号列表" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">•⋮</button>
+                  </el-tooltip>
+                  <el-tooltip content="编号列表" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">1⋮</button>
+                  </el-tooltip>
+                  <span class="wizard-richtext-divider"></span>
+                  <el-tooltip content="插入公式" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">∑</button>
+                  </el-tooltip>
+                  <el-tooltip content="插入表格" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">▦</button>
+                  </el-tooltip>
+                  <span class="wizard-richtext-divider"></span>
+                  <el-tooltip content="插入图片" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">🖼</button>
+                  </el-tooltip>
+                  <span class="wizard-richtext-wordcount">{{ richtextCharCount(application.researchPurpose) }}/1500</span>
+                </div>
+                <div class="wizard-richtext-editor" contenteditable="true" data-placeholder="请输入研究目的和意义简述">
+                  {{ application.researchPurpose }}
+                </div>
               </div>
-              <p
-                :class="[
-                  'wizard-count-line',
-                  {
-                    over:
-                      getChapterLength([
-                        'mainWork',
-                        'keyProblem',
-                        'technicalDifficulty',
-                        'technicalRoute',
-                        'methodInnovation',
-                      ]) > 1500,
-                  },
-                ]"
-              >
-                本章合计
-                {{
-                  getChapterLength([
-                    'mainWork',
-                    'keyProblem',
-                    'technicalDifficulty',
-                    'technicalRoute',
-                    'methodInnovation',
-                  ])
-                }}
-                / 1500 字
-              </p>
+            </section>
+
+            <section class="wizard-form-section">
+              <h3>二、主要研究内容（≤1500字）</h3>
+              <div class="wizard-richtext-demo">
+                <div class="wizard-richtext-toolbar" role="toolbar" aria-label="富文本工具栏">
+                  <el-tooltip content="加粗" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn is-active"><strong>B</strong></button>
+                  </el-tooltip>
+                  <el-tooltip content="斜体" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn"><em>I</em></button>
+                  </el-tooltip>
+                  <el-tooltip content="下划线" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn"><span style="text-decoration: underline">U</span></button>
+                  </el-tooltip>
+                  <span class="wizard-richtext-divider"></span>
+                  <el-tooltip content="项目符号列表" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">•⋮</button>
+                  </el-tooltip>
+                  <el-tooltip content="编号列表" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">1⋮</button>
+                  </el-tooltip>
+                  <span class="wizard-richtext-divider"></span>
+                  <el-tooltip content="插入公式" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">∑</button>
+                  </el-tooltip>
+                  <el-tooltip content="插入表格" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">▦</button>
+                  </el-tooltip>
+                  <span class="wizard-richtext-divider"></span>
+                  <el-tooltip content="插入图片" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">🖼</button>
+                  </el-tooltip>
+                  <span class="wizard-richtext-wordcount">{{ richtextCharCount(application.mainResearchContent) }}/1500</span>
+                </div>
+                <div class="wizard-richtext-editor" contenteditable="true" data-placeholder="请输入主要研究内容">
+                  {{ application.mainResearchContent }}
+                </div>
+              </div>
+            </section>
+
+            <section class="wizard-form-section">
+              <h3>三、研究基础（≤1000字）</h3>
+              <div class="wizard-richtext-demo">
+                <div class="wizard-richtext-toolbar" role="toolbar" aria-label="富文本工具栏">
+                  <el-tooltip content="加粗" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn is-active"><strong>B</strong></button>
+                  </el-tooltip>
+                  <el-tooltip content="斜体" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn"><em>I</em></button>
+                  </el-tooltip>
+                  <el-tooltip content="下划线" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn"><span style="text-decoration: underline">U</span></button>
+                  </el-tooltip>
+                  <span class="wizard-richtext-divider"></span>
+                  <el-tooltip content="项目符号列表" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">•⋮</button>
+                  </el-tooltip>
+                  <el-tooltip content="编号列表" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">1⋮</button>
+                  </el-tooltip>
+                  <span class="wizard-richtext-divider"></span>
+                  <el-tooltip content="插入公式" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">∑</button>
+                  </el-tooltip>
+                  <el-tooltip content="插入表格" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">▦</button>
+                  </el-tooltip>
+                  <span class="wizard-richtext-divider"></span>
+                  <el-tooltip content="插入图片" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">🖼</button>
+                  </el-tooltip>
+                  <span class="wizard-richtext-wordcount">{{ richtextCharCount(application.researchFoundation) }}/1000</span>
+                </div>
+                <div class="wizard-richtext-editor" contenteditable="true" data-placeholder="请输入研究基础">
+                  {{ application.researchFoundation }}
+                </div>
+              </div>
+            </section>
+
+            <section class="wizard-form-section">
+              <h3>四、年度研究任务和实施方案</h3>
+              <div class="wizard-richtext-demo">
+                <div class="wizard-richtext-toolbar" role="toolbar" aria-label="富文本工具栏">
+                  <el-tooltip content="加粗" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn is-active"><strong>B</strong></button>
+                  </el-tooltip>
+                  <el-tooltip content="斜体" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn"><em>I</em></button>
+                  </el-tooltip>
+                  <el-tooltip content="下划线" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn"><span style="text-decoration: underline">U</span></button>
+                  </el-tooltip>
+                  <span class="wizard-richtext-divider"></span>
+                  <el-tooltip content="项目符号列表" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">•⋮</button>
+                  </el-tooltip>
+                  <el-tooltip content="编号列表" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">1⋮</button>
+                  </el-tooltip>
+                  <span class="wizard-richtext-divider"></span>
+                  <el-tooltip content="插入公式" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">∑</button>
+                  </el-tooltip>
+                  <el-tooltip content="插入表格" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">▦</button>
+                  </el-tooltip>
+                  <span class="wizard-richtext-divider"></span>
+                  <el-tooltip content="插入图片" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">🖼</button>
+                  </el-tooltip>
+                </div>
+                <div class="wizard-richtext-editor" contenteditable="true" data-placeholder="请输入年度研究任务和实施方案">
+                  {{ application.annualTasks }}
+                </div>
+              </div>
+            </section>
+
+            <section class="wizard-form-section">
+              <h3>五、总体考核指标</h3>
+              <div class="wizard-richtext-demo">
+                <div class="wizard-richtext-toolbar" role="toolbar" aria-label="富文本工具栏">
+                  <el-tooltip content="加粗" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn is-active"><strong>B</strong></button>
+                  </el-tooltip>
+                  <el-tooltip content="斜体" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn"><em>I</em></button>
+                  </el-tooltip>
+                  <el-tooltip content="下划线" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn"><span style="text-decoration: underline">U</span></button>
+                  </el-tooltip>
+                  <span class="wizard-richtext-divider"></span>
+                  <el-tooltip content="项目符号列表" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">•⋮</button>
+                  </el-tooltip>
+                  <el-tooltip content="编号列表" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">1⋮</button>
+                  </el-tooltip>
+                  <span class="wizard-richtext-divider"></span>
+                  <el-tooltip content="插入公式" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">∑</button>
+                  </el-tooltip>
+                  <el-tooltip content="插入表格" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">▦</button>
+                  </el-tooltip>
+                  <span class="wizard-richtext-divider"></span>
+                  <el-tooltip content="插入图片" placement="top" effect="light">
+                    <button type="button" class="wizard-richtext-btn">🖼</button>
+                  </el-tooltip>
+                </div>
+                <div class="wizard-richtext-editor" contenteditable="true" data-placeholder="请输入总体考核指标">
+                  {{ application.assessmentIndicators }}
+                </div>
+              </div>
             </section>
           </template>
 
           <template v-else-if="activeStep === 3">
             <section class="wizard-form-section">
-              <h3>申请人与团队基础</h3>
-              <p class="wizard-section-tip">本章合计不超过 1000 字。</p>
-              <div class="wizard-form-grid">
-                <el-form-item label="申请人工作背景" required>
-                  <el-input v-model="application.applicantBackground" type="textarea" :rows="5" />
-                </el-form-item>
-                <el-form-item label="申请人研究基础" required>
-                  <el-input v-model="application.researchFoundation" type="textarea" :rows="5" />
-                </el-form-item>
-                <el-form-item label="科研团队情况" required>
-                  <el-input v-model="application.teamProfile" type="textarea" :rows="5" />
-                </el-form-item>
-                <el-form-item label="科研项目组织实施经验" required>
-                  <el-input v-model="application.implementationExperience" type="textarea" :rows="5" />
-                </el-form-item>
-              </div>
-              <p
-                :class="[
-                  'wizard-count-line',
-                  {
-                    over:
-                      getChapterLength([
-                        'applicantBackground',
-                        'researchFoundation',
-                        'teamProfile',
-                        'implementationExperience',
-                      ]) > 1000,
-                  },
-                ]"
-              >
-                本章合计
-                {{
-                  getChapterLength([
-                    'applicantBackground',
-                    'researchFoundation',
-                    'teamProfile',
-                    'implementationExperience',
-                  ])
-                }}
-                / 1000 字
-              </p>
-            </section>
-          </template>
-
-          <template v-else-if="activeStep === 4">
-            <section class="wizard-form-section">
-              <h3>分年度研究计划</h3>
-              <p class="wizard-section-tip">根据执行年限逐年度填写，保持研究任务、实施路径、合作方式和学生培养目标对应。</p>
-
-              <article
-                v-for="(plan, index) in application.annualPlans"
-                :key="index"
-                class="wizard-repeat-card"
-              >
-                <header>
-                  <strong>{{ String(index + 1).padStart(2, '0') }} {{ plan.yearLabel || `第${index + 1}年度` }}</strong>
-                  <el-button
-                    v-if="application.annualPlans.length > 1"
-                    link
-                    type="danger"
-                    @click="removeAnnualPlan(index)"
-                  >
-                    删除本年度
-                  </el-button>
-                </header>
-
-                <div class="wizard-form-grid">
-                  <el-form-item label="年度名称或时间范围" class="full" required>
-                    <el-input v-model.trim="plan.yearLabel" placeholder="如：第一年度（2026.10-2027.09）" />
-                  </el-form-item>
-                  <el-form-item label="主要研究任务" class="full" required>
-                    <el-input v-model="plan.researchTasks" type="textarea" :rows="4" />
-                  </el-form-item>
-                  <el-form-item label="实施方案" class="full" required>
-                    <el-input v-model="plan.implementationPlan" type="textarea" :rows="4" />
-                  </el-form-item>
-                  <el-form-item label="研究计划及合作方式" class="full" required>
-                    <el-input v-model="plan.cooperationMode" type="textarea" :rows="4" />
-                  </el-form-item>
-                  <el-form-item label="项目学生培养目标" class="full" required>
-                    <el-input v-model="plan.studentTrainingGoal" type="textarea" :rows="4" />
-                  </el-form-item>
-                </div>
-              </article>
-
-              <el-button @click="addAnnualPlan">新增年度计划</el-button>
-            </section>
-          </template>
-
-          <template v-else-if="activeStep === 5">
-            <section class="wizard-form-section">
-              <h3>总体与年度目标</h3>
-              <div class="wizard-form-grid">
-                <el-form-item label="总目标" required>
-                  <el-input v-model="application.overallGoal" type="textarea" :rows="6" />
-                </el-form-item>
-                <el-form-item label="年度目标" required>
-                  <el-input v-model="application.annualGoal" type="textarea" :rows="6" />
-                </el-form-item>
-                <el-form-item label="预期成果" required>
-                  <el-input v-model="application.expectedOutcomes" type="textarea" :rows="5" />
-                </el-form-item>
-                <el-form-item label="社会、学术或产业影响力" required>
-                  <el-input v-model="application.impact" type="textarea" :rows="5" />
-                </el-form-item>
-                <el-form-item label="人才队伍建设" required>
-                  <el-input v-model="application.talentDevelopment" type="textarea" :rows="5" />
-                </el-form-item>
-                <el-form-item label="其他指标" required>
-                  <el-input v-model="application.otherIndicators" type="textarea" :rows="5" placeholder="没有其他指标时填写“无”" />
-                </el-form-item>
-              </div>
-            </section>
-          </template>
-
-          <template v-else-if="activeStep === 6">
-            <section class="wizard-form-section">
               <h3>参加人员名单</h3>
-              <p class="wizard-section-tip">项目负责人作为第一行，并与基本信息自动同步。</p>
 
               <div class="wizard-table-scroll">
                 <el-table class="wizard-edit-table" :data="application.participants" border>
@@ -1352,34 +1120,34 @@ function displayText(value: unknown) {
                   </el-table-column>
                   <el-table-column label="姓名" min-width="120">
                     <template #default="{ row, $index }">
-                      <el-input v-model.trim="row.name" :disabled="$index === 0" />
+                      <el-input v-model.trim="row.name" :disabled="$index === 0" placeholder="人员选择或手动输入" />
                     </template>
                   </el-table-column>
                   <el-table-column label="单位" min-width="150">
                     <template #default="{ row, $index }">
-                      <el-input v-model.trim="row.unit" :disabled="$index === 0" />
+                      <el-input v-model.trim="row.unit" :disabled="$index === 0" placeholder="自动带出或手动输入" />
                     </template>
                   </el-table-column>
                   <el-table-column label="性别" width="98">
                     <template #default="{ row, $index }">
-                      <el-select v-model="row.gender" :disabled="$index === 0" placeholder="请选择">
+                      <el-select v-model="row.gender" :disabled="$index === 0" placeholder="选择">
                         <el-option v-for="gender in genderOptions" :key="gender" :label="gender" :value="gender" />
                       </el-select>
                     </template>
                   </el-table-column>
                   <el-table-column label="专业" min-width="130">
                     <template #default="{ row }">
-                      <el-input v-model.trim="row.major" />
+                      <el-input v-model.trim="row.major" placeholder="自动带出或手动输入" />
                     </template>
                   </el-table-column>
                   <el-table-column label="职称/职务" min-width="130">
                     <template #default="{ row }">
-                      <el-input v-model.trim="row.title" />
+                      <el-input v-model.trim="row.title" placeholder="自动带出或手动输入" />
                     </template>
                   </el-table-column>
                   <el-table-column label="责任分工" min-width="160">
                     <template #default="{ row }">
-                      <el-input v-model.trim="row.responsibility" />
+                      <el-input v-model.trim="row.responsibility" maxlength="100" />
                     </template>
                   </el-table-column>
                   <el-table-column label="操作" width="78" fixed="right">
@@ -1392,121 +1160,55 @@ function displayText(value: unknown) {
               </div>
 
               <footer class="wizard-table-footer">
-                <span>至少包含项目负责人和一名成员。</span>
                 <el-button @click="addParticipant">新增成员</el-button>
               </footer>
             </section>
           </template>
 
-          <template v-else-if="activeStep === 7">
+          <template v-else-if="activeStep === 4">
             <section class="wizard-form-section">
-              <h3>首年经费预算</h3>
-              <div class="wizard-table-scroll">
-                <table class="wizard-budget-table">
-                  <thead>
-                    <tr>
-                      <th>科目</th>
-                      <th>预算经费（万元）</th>
-                      <th>预算测算依据与说明</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="row in budgetRows" :key="row.subject">
-                      <td>
-                        <strong>{{ row.subject }}</strong>
-                      </td>
-                      <td>
-                        <el-input-number
-                          :model-value="application.budget[row.key]"
-                          :min="0"
-                          :precision="2"
-                          :step="1"
-                          controls-position="right"
-                          @update:model-value="(value: number | undefined) => handleBudgetAmountChange(row.key, value)"
-                        />
-                      </td>
-                      <td>
-                        <el-input
-                          :model-value="application.budget[row.noteKey]"
-                          type="textarea"
-                          :rows="2"
-                          :placeholder="row.tip"
-                          @update:model-value="(value: string) => handleBudgetNoteChange(row.noteKey, value)"
-                        />
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <h3>项目预算明细</h3>
+              <p class="wizard-section-tip">
+                本批次按包干制管理，项目总预算由 PMO 统一预设（{{
+                  formatMoney(wizardPresetTotalBudget)
+                }}
+                万元），申请人无需填写预算明细。
+              </p>
 
-              <div class="wizard-budget-total">
-                <span>
-                  劳务费占比：
-                  <strong :class="{ danger: isLaborRatioInvalid }">{{ laborRatio.toFixed(1) }}%</strong>
-                </span>
-                <span>
-                  预算合计：
-                  <strong>{{ formatMoney(budgetTotal) }}</strong>
-                  万元
-                </span>
+              <div class="wizard-package-note" role="note" aria-label="包干说明">
+                <strong>包干说明</strong>
+                <p>{{ packageNoteText }}</p>
               </div>
-
-              <el-alert
-                :type="isLaborRatioInvalid ? 'error' : 'warning'"
-                :title="isLaborRatioInvalid ? '劳务费占比已超过 30%，将阻止提交' : '设备购置费属于设备费明细，不重复计入合计'"
-                description="预算合计 = 设备费 + 业务费 + 劳务费；设备购置费只作为设备费明细展示。"
-                :closable="false"
-                show-icon
-              />
             </section>
           </template>
 
-          <template v-else-if="activeStep === 8">
+          <template v-else-if="activeStep === 5">
             <section class="wizard-form-section">
-              <h3>特殊算力需求</h3>
-              <el-alert
-                class="wizard-section-alert"
-                title="学院会为项目配置基础算力"
-                description="只有超出基础配置或存在特殊环境要求时，才需要补充说明。"
-                type="info"
-                :closable="false"
-                show-icon
-              />
-
-              <el-form-item label="是否存在特殊算力需求" required>
-                <el-radio-group v-model="application.specialCompute">
-                  <el-radio-button value="no">无特殊算力需求</el-radio-button>
-                  <el-radio-button value="yes">有特殊算力需求</el-radio-button>
-                </el-radio-group>
+              <h3>答辩材料</h3>
+              <el-form-item label="答辩 PPT 附件（复审必填）">
+                <el-upload
+                  drag
+                  :auto-upload="false"
+                  :limit="1"
+                  :accept="pptAccept"
+                  :on-change="handlePptChange"
+                  :on-remove="handlePptRemove"
+                  :on-exceed="handlePptExceed"
+                  :before-upload="beforePptUpload"
+                >
+                  <div class="wizard-upload-hint">
+                    <strong>点击或拖拽上传答辩 PPT</strong>
+                    <span>初审前不强制要求；通过初审后可按初审意见修改申报书并提交复审 PPT（≤100MB）</span>
+                  </div>
+                </el-upload>
               </el-form-item>
-
-              <div v-if="application.specialCompute === 'yes'" class="wizard-form-grid">
-                <el-form-item label="算力规模" required>
-                  <el-input v-model.trim="application.computeScale" placeholder="如：8 卡 GPU、128G 显存等" />
-                </el-form-item>
-                <el-form-item label="使用周期" required>
-                  <el-input v-model.trim="application.computePeriod" placeholder="如：2026.10-2027.03" />
-                </el-form-item>
-                <el-form-item label="特殊环境" required>
-                  <el-input v-model.trim="application.computeEnvironment" placeholder="如：CUDA 版本、专用框架或安全隔离环境" />
-                </el-form-item>
-                <el-form-item label="用途和原因" required>
-                  <el-input v-model="application.computePurposeReason" type="textarea" :rows="5" />
-                </el-form-item>
-              </div>
             </section>
           </template>
 
           <template v-else>
             <section class="wizard-form-section">
-              <h3>承诺书身份信息</h3>
+              <h3>联合项目负责人</h3>
               <div class="wizard-form-grid">
-                <el-form-item label="项目负责人" required>
-                  <el-input v-model="application.applicantName" disabled />
-                </el-form-item>
-                <el-form-item label="项目负责人身份证号" required>
-                  <el-input v-model.trim="application.leaderIdCard" />
-                </el-form-item>
                 <el-form-item label="是否存在联合项目负责人" class="full">
                   <el-switch
                     v-model="application.jointEnabled"
@@ -1515,10 +1217,10 @@ function displayText(value: unknown) {
                   />
                 </el-form-item>
                 <el-form-item v-if="application.jointEnabled" label="联合项目负责人姓名" required>
-                  <el-input v-model.trim="application.jointName" />
-                </el-form-item>
-                <el-form-item v-if="application.jointEnabled" label="联合项目负责人身份证号" required>
-                  <el-input v-model.trim="application.jointIdCard" />
+                  <el-input
+                    v-model.trim="application.jointLeaderName"
+                    placeholder="可在组织架构选择或输入文本"
+                  />
                 </el-form-item>
               </div>
             </section>
@@ -1527,76 +1229,36 @@ function displayText(value: unknown) {
               <h3>项目经费使用承诺书</h3>
               <div class="wizard-commitment-box">
                 <p>
-                  项目负责人 {{ application.applicantName || '[姓名]' }}，身份证号
-                  {{ application.leaderIdCard || '[XXX]' }}，
+                  项目负责人 {{ application.applicantName || '[姓名]' }}
                   <template v-if="application.jointEnabled">
-                    联合项目负责人 {{ application.jointName || '[姓名]' }}，身份证号
-                    {{ application.jointIdCard || '[XXX]' }}，
+                    ，联合项目负责人 {{ application.jointLeaderName || '[姓名]' }}
                   </template>
+                  ，
                   现为北京中关村学院 {{ application.projectName || '[项目名称]' }} 的项目经费负责人，特此承诺如下：
                 </p>
                 <h4>一、项目经费使用责任</h4>
-                <p>本人承诺，在承担项目管理职责过程中，是科研经费管理的第一责任人，对经费使用的合理性、真实性、合规性负责。</p>
+                <p>本人承诺，在承担[项目名称]管理职责过程中，本人是科研经费管理的第一责任人，对经费使用的合理性、真实性、合规性负责。</p>
                 <h4>二、项目经费审批和监督</h4>
-                <p>本人承诺在项目执行过程中，负责在项目预算额度内按学院财务规定对所有经费使用进行严格审批，并确保报销事项和报销材料真实、准确、合规。</p>
+                <p>本人承诺在项目执行过程中，负责在项目预算额度内按学院财务规定对所有经费使用进行严格审批。若有任何需要调整预算的情况，本人将按照学院项目管理规定履行相关审批流程。本人承诺负责本项目经费的管理与监督，确保报销事项和报销材料的真实、准确、合规。如因虚假报销或不合理使用导致经济损失，本人愿意承担最终责任。</p>
                 <h4>三、项目经费使用的合规性</h4>
-                <p>本人承诺所有开支均符合相关法律法规、学院规章制度规定及项目合同约定，不挪用、滥用或超出预算范围使用项目经费。</p>
+                <p>本人承诺在项目实施过程中，所有开支均符合相关法律法规、学院规章制度规定及项目合同约定。若项目中出现不合规支出，本人愿意承担最终责任。本人承诺项目经费仅用于与本项目实施相关的必要支出，不得挪用、滥用或超出预算范围，不得用于其他无关事务。除另有约定外，本项目经费购置的固定资产（如设备、软件）及无形资产（如专利、版权）均为学院资产，本人承诺按学院资产管理规定办理入库、登记；项目结题后配合资产盘点与移交，不擅自处置或占用；若因资产流失致学院损失，本人承担赔偿责任。</p>
                 <h4>四、责任承担</h4>
-                <p>如项目经费使用不当、超支或违反经费管理规定，给学院造成损失或影响项目执行，本人愿意承担相应责任。</p>
+                <p>本人作为项目负责人，负责经费的审批和管理。如经学院财务部或审计部门发现经费使用存在虚假、滥用或不合规的情况，本人将积极协助调查处理。如项目经费使用不当、超支或违反经费管理规定，给学院造成损失或影响项目执行，学院可追究本人相应责任，包括而不限于：取消经费负责人资格、追回相应经费、索赔因项目经费不当使用而致使学院遭受的全部损失等。本人已知悉学院科研经费相关管理规定：对于不履行科研经费管理责任、违规使用科研经费的行为，视情节轻重采取通报批评、冻结科研经费使用、取消责任人一定期限内项目申报资格、取消导师资格等处罚措施。涉嫌犯罪的，依法移送司法机关追究法律责任。</p>
                 <h4>五、声明</h4>
-                <p>本人已认真阅读承诺函全部内容并理解其含义。若本人有任何违反上述承诺的行为，愿意承担相应责任。特此承诺。</p>
+                <p>本人已认真阅读承诺函全部内容并理解其含义。若本人有任何违反上述承诺的行为，愿意承担相应责任。</p>
+                <p>特此承诺。</p>
               </div>
 
-              <el-checkbox v-model="application.consent" class="wizard-consent">
-                已阅读并同意项目经费使用承诺书全部内容
+              <el-checkbox
+                :model-value="application.consent"
+                class="wizard-consent"
+                @update:model-value="(_value: boolean | string | number) => { application.consent = Boolean(_value); handleConsentChange(Boolean(_value)) }"
+              >
+                已阅读并同意项目经费使用承诺书全部内容（提交前必选，系统记录确认人与时间）
               </el-checkbox>
-            </section>
-
-            <section class="wizard-form-section">
-              <h3>手写签名</h3>
-              <div class="wizard-signature-grid">
-                <article class="wizard-signature-card">
-                  <header>
-                    <strong>项目负责人签名</strong>
-                    <span>{{ application.leaderSignatureDataUrl ? '已采集' : '待签名' }}</span>
-                  </header>
-                  <HandwrittenSignaturePad
-                    :model-value="application.leaderSignatureDataUrl"
-                    @update:model-value="application.leaderSignatureDataUrl = $event"
-                    @saved="handleLeaderSignatureSaved"
-                    @clear="handleLeaderSignatureClear"
-                  />
-                  <el-date-picker
-                    v-model="application.leaderSignDate"
-                    class="wizard-sign-date"
-                    type="date"
-                    value-format="YYYY-MM-DD"
-                    format="YYYY-MM-DD"
-                    placeholder="请选择签名日期"
-                  />
-                </article>
-
-                <article v-if="application.jointEnabled" class="wizard-signature-card">
-                  <header>
-                    <strong>联合项目负责人签名</strong>
-                    <span>{{ application.jointSignatureDataUrl ? '已采集' : '待签名' }}</span>
-                  </header>
-                  <HandwrittenSignaturePad
-                    :model-value="application.jointSignatureDataUrl"
-                    @update:model-value="application.jointSignatureDataUrl = $event"
-                    @saved="handleJointSignatureSaved"
-                    @clear="handleJointSignatureClear"
-                  />
-                  <el-date-picker
-                    v-model="application.jointSignDate"
-                    class="wizard-sign-date"
-                    type="date"
-                    value-format="YYYY-MM-DD"
-                    format="YYYY-MM-DD"
-                    placeholder="请选择签名日期"
-                  />
-                </article>
-              </div>
+              <p v-if="application.consentConfirmedAt" class="wizard-consent-record">
+                确认人：{{ application.applicantName }} · 确认时间：{{ application.consentConfirmedAt }}
+              </p>
             </section>
           </template>
         </el-form>
@@ -1714,24 +1376,6 @@ function displayText(value: unknown) {
           <section v-for="section in previewSections" :key="section.title" class="wizard-paper-section">
             <h3>{{ section.title }}</h3>
             <p :class="{ placeholder: !section.body }">{{ section.body || '尚未填写' }}</p>
-          </section>
-
-          <section class="wizard-paper-section">
-            <h3>签名确认</h3>
-            <div class="wizard-paper-signatures">
-              <div>
-                <span>项目负责人签名：</span>
-                <img v-if="application.leaderSignatureDataUrl" :src="application.leaderSignatureDataUrl" alt="项目负责人签名" />
-                <em v-else>尚未填写</em>
-                <strong>日期：{{ application.leaderSignDate || '尚未填写' }}</strong>
-              </div>
-              <div v-if="application.jointEnabled">
-                <span>联合项目负责人签名：</span>
-                <img v-if="application.jointSignatureDataUrl" :src="application.jointSignatureDataUrl" alt="联合项目负责人签名" />
-                <em v-else>尚未填写</em>
-                <strong>日期：{{ application.jointSignDate || '尚未填写' }}</strong>
-              </div>
-            </div>
           </section>
         </article>
       </div>
@@ -1864,17 +1508,18 @@ function displayText(value: unknown) {
 .wizard-stage-item {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   color: #8a97ac;
 }
 
 .wizard-stage-item:not(:last-child)::after {
   content: "";
   position: absolute;
-  top: 14px;
-  right: 8px;
-  left: 36px;
+  top: 38px;
+  left: calc(50% + 21px);
+  right: calc(-50% + 21px);
   height: 2px;
   background: #e7ebf2;
 }
@@ -1917,20 +1562,79 @@ function displayText(value: unknown) {
   box-shadow: 0 0 0 5px #eaf3ff;
 }
 
-.wizard-stage-item strong,
-.wizard-stage-item small {
-  display: block;
-}
-
 .wizard-stage-item strong {
+  display: block;
   color: inherit;
   font-size: 13px;
+  font-weight: 600;
+  text-align: center;
 }
 
-.wizard-stage-item small {
-  margin-top: 2px;
+.wizard-richtext-demo {
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.wizard-richtext-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #e7ebf2;
+  background: #f7f9fc;
+}
+
+.wizard-richtext-btn {
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #4e5969;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.wizard-richtext-btn:hover {
+  border-color: #c6d4ea;
+  background: #eef4ff;
+}
+
+.wizard-richtext-btn.is-active {
+  border-color: #9dc2ff;
+  background: #e1efff;
+  color: #236edc;
+}
+
+.wizard-richtext-divider {
+  width: 1px;
+  height: 16px;
+  margin: 0 6px;
+  background: #dcdfe6;
+}
+
+.wizard-richtext-wordcount {
+  margin-left: auto;
   color: #a0aabc;
-  font-size: 11px;
+  font-size: 12px;
+}
+
+.wizard-richtext-editor {
+  min-height: 168px;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.7;
+  outline: none;
+  background: #fff;
+}
+
+.wizard-richtext-editor:empty::before {
+  content: attr(data-placeholder);
+  color: #c0c4cc;
 }
 
 .wizard-workspace {
@@ -2196,6 +1900,31 @@ function displayText(value: unknown) {
 .wizard-table-scroll {
   min-width: 0;
   overflow-x: auto;
+}
+
+.wizard-package-note {
+  margin: 14px 0 0;
+  padding: 14px 16px;
+  border: 1px solid #dbe7f8;
+  border-left: 4px solid #3478ee;
+  border-radius: 10px;
+  background: #f6faff;
+}
+
+.wizard-package-note strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #245dc9;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.wizard-package-note p {
+  margin: 0;
+  color: #344159;
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-line;
 }
 
 .wizard-edit-table {
@@ -2674,5 +2403,52 @@ function displayText(value: unknown) {
   .wizard-stage-item:not(:last-child)::after {
     display: none;
   }
+}
+.rich-editor {
+  width: 100%;
+  display: grid;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.rich-editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #e7eaf0;
+  background: #f7f9fc;
+}
+
+.rich-editor-btn {
+  min-width: 28px;
+  height: 26px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  color: #475069;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.rich-editor-btn:hover {
+  border-color: #c6d4f5;
+  background: #eef3ff;
+  color: #1f6feb;
+}
+
+.rich-editor-divider {
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: #dcdfe6;
+}
+
+.rich-editor-body :deep(.el-textarea__inner) {
+  border: none;
+  box-shadow: none;
+  padding: 10px 12px;
 }
 </style>

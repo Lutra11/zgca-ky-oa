@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, shallowRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue'
 import type { Component } from 'vue'
 import {
   ElMessage,
@@ -12,8 +12,10 @@ import {
 } from 'element-plus'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
+  ArrowDown,
   ArrowLeft,
   ArrowRight,
+  ArrowUp,
   Back,
   Calendar,
   Collection,
@@ -38,7 +40,12 @@ import AppTopBar from '../components/AppTopBar.vue'
 import InitiationBatchCard from '../components/initiation/InitiationBatchCard.vue'
 import InitiationBatchDetail from '../components/initiation/InitiationBatchDetail.vue'
 import InitiationBatchFilter from '../components/initiation/InitiationBatchFilter.vue'
+import LaunchPlanGantt from '../components/initiation/LaunchPlanGantt.vue'
 import InitiationDeclarationReview from '../components/initiation/InitiationDeclarationReview.vue'
+import recheckPptUrl from '../dataset/img/test.pdf'
+import ReviewerAssignmentPanel from '../components/initiation/ReviewerAssignmentPanel.vue'
+import MyReviewTasks from '../components/reviewer/MyReviewTasks.vue'
+import ReviewTaskDetail from '../components/reviewer/ReviewTaskDetail.vue'
 import ApplicationPdfPreview from '../components/initiation/ApplicationPdfPreview.vue'
 import ProjectApplicationFormPanel from '../components/initiation/ProjectApplicationFormPanel.vue'
 import ProjectApplicationWizard from '../components/initiation/ProjectApplicationWizard.vue'
@@ -52,6 +59,7 @@ import ProjectLibraryLedger from '../components/projects/ProjectLibraryLedger.vu
 import ProjectChangeManagement from '../components/projects/ProjectChangeManagement.vue'
 import ProjectStartManagement from '../components/projects/ProjectStartManagement.vue'
 import ProjectMemberMyProjects from '../components/projects/ProjectMemberMyProjects.vue'
+import ProjectApplicationProjects from '../components/projects/ProjectApplicationProjects.vue'
 import ProjectMemberProjectDetail from '../components/projects/ProjectMemberProjectDetail.vue'
 import ProjectParticipantRecruitment from '../components/projects/participant/ProjectParticipantRecruitment.vue'
 import AdminProjectRecruitmentOverview from '../components/projects/recruitment/AdminProjectRecruitmentOverview.vue'
@@ -88,6 +96,24 @@ import {
   type InitiationProjectNode,
   type InitiationToolKey,
 } from '../dataset/initiationProjectsMock'
+import { getProjectMemberProjects } from '../dataset/projectMemberProjectsMock'
+import { officeLaunchFeedback, setOfficeLaunchRejected, resetOfficeLaunchFeedback } from '../utils/office-feedback'
+import {
+  finalReviewReport,
+  finalReviewRows as finalReviewRowsSource,
+  type FinalReviewSummaryRow,
+} from '../dataset/finalReviewReportMock'
+import FinalScoreDetailDialog, { type ScoreDetailTarget } from '../components/initiation/FinalScoreDetailDialog.vue'
+import {
+  pmoFinalFacultySummaries as pmoFinalFacultySummariesSource,
+  pmoRecheckMonitorRows,
+  type PMORecheckMonitorRow,
+} from '../dataset/pmoFinalReviewMock'
+import {
+  facultyRecommendReport,
+  notRecommendedRows,
+  recommendRows,
+} from '../dataset/facultyRecommendReportMock'
 import { isWorkflowBatchConfigured, readWorkflowDraft, type WorkflowMeta } from '../dataset/initiationWorkflowMock'
 import {
   createWorkflowConfigRow,
@@ -116,6 +142,8 @@ import type { LoggedInUser, RoleFeatureKey, RoleKey } from '../types/auth'
 interface BreadcrumbItem {
   label: string
   to?: string
+  /** 点击回调（优先于 to：用于不改 URL、仅重置组件内视图状态的返回，如批次流转线返回批次列表） */
+  action?: () => void
 }
 
 interface PrimaryMenuItem {
@@ -135,6 +163,8 @@ interface LandingCard {
   role: string
   iconText: string
   routeSegment?: string
+  /** 字段说明（FD 固化）：卡片标题旁 ℹ 角标 hover 显示 */
+  hint?: string
   path?: string
   iconUrl?: string
   accent: string
@@ -150,15 +180,35 @@ interface LandingModule {
 }
 
 interface LaunchInitiationForm {
-  batch_name: string
-  batch_code: string
+  /** 项目归属组织（组织多选） */
+  owner_organizations: string[]
+  /** 科研项目类别（单选文本） */
   project_category: string
+  /** 批次编码（自动，全局唯一） */
+  batch_code: string
+  /** 批次名称（≤50字） */
+  batch_name: string
+  /** 项目经费来源（单选） */
+  funding_source: string
+  /** 项目预算方式（单选+配置） */
+  budget_mode: string
+  /** 绑定流程模板（下拉） */
+  workflow_template: string
+  /** 绑定申报表单模板（下拉） */
+  form_template: string
+  /** 项目批次说明（富文本，≤2000字） */
   batch_introduction: string
+  /** 申报起止时间 */
   batch_apply_start: string
   batch_apply_deadline: string
-  batch_limit_count: number
+  /** 立项指南附件（PDF/DOCX ≤100MB） */
   batch_guide_file: string
-  remark: string
+  /** 目标群体（组织/人员多选） */
+  target_groups: string[]
+  /** 发起人（自动，不可改） */
+  launch_owner: string
+  /** 申报项目限制（是/否） */
+  declaration_limit: string
 }
 
 interface LaunchBatchSeed {
@@ -226,7 +276,669 @@ interface WorkbenchBoardData {
 
 type BatchStatusView = 'active' | 'history'
 type LeaderBatchTimeStatus = '未开始' | '申报中' | '已结束'
-type ApprovalRoleInitiationView = 'self' | 'projectMember'
+type ApprovalRoleInitiationView = 'self' | 'projectMember' | 'projectApproval'
+
+/** 批次详情两条审查线: '' 选择 / 'formal' 形式审查审批 / 'final' 学部推荐立项终审 */
+type ApprovalRoleBatchStage = '' | 'formal' | 'final' | 'guide' | 'recheck' | 'archive'
+
+/** 管理办负责人项目审批五步流转线: '' 首页(直接展示流转线) / guide 发布 / formal 形式审查 / final 初审 / recheck 复审 / archive 立项入库 */
+type OfficeApprovalStage = '' | 'guide' | 'formal' | 'final' | 'recheck' | 'archive'
+
+const approvalRoleBatchStage = shallowRef<ApprovalRoleBatchStage>('')
+
+/** 学部批次初审阶段两步：assign 指定子方向与评委（评委分配已并入批次流转线） / report 评审结果报告 */
+type ApprovalRoleFinalSubStep = 'assign' | 'report'
+const approvalRoleFinalSubStep = shallowRef<ApprovalRoleFinalSubStep>('assign')
+
+function selectApprovalRoleFinalSubStep(sub: ApprovalRoleFinalSubStep) {
+  approvalRoleFinalSubStep.value = sub
+}
+
+/** 从批次内进入「指定子方向与评委」（AN 融合：不再跳出批次，直接切到初审阶段 assign 子步） */
+function openApprovalRoleAssignReviewers() {
+  approvalRoleBatchStage.value = 'final'
+  approvalRoleFinalSubStep.value = 'assign'
+}
+
+const officeApprovalFlowSteps = [
+  '立项指南发布',
+  '形式审查',
+  '初审阶段',
+  '复审阶段',
+  '立项入库',
+] as const
+
+const officeApprovalStageMeta: Record<Exclude<OfficeApprovalStage, ''>, { title: string; desc: string }> = {
+  guide: {
+    title: '立项指南发布',
+    desc: '本环节为流转线第 1 步「立项指南发布」：PMO 发布立项指南与批次信息，管理办负责人可查看指南发布情况。',
+  },
+  formal: {
+    title: '形式审查',
+    desc: '本环节为流转线第 2 步「形式审查」：PMO 按立项批次开展形式审查、材料核验和退回修改，管理办负责人可跟踪审查进度。',
+  },
+  final: {
+    title: '初审阶段',
+    desc: '本环节为流转线第 3 步「初审阶段」：学部组织专家评审并形成学部初审结果汇总，管理办负责人可查看初审汇总情况。',
+  },
+  recheck: {
+    title: '复审阶段',
+    desc: '本环节为流转线第 4 步「复审阶段」：学部确认推荐名单并组织复审，管理办负责人可跟踪复审进展。',
+  },
+  archive: {
+    title: '立项入库',
+    desc: '本环节为流转线第 5 步「立项入库」：管理办负责人审定学部推荐立项名单，审定通过后项目正式立项入库。',
+  },
+}
+
+// 复审阶段子步骤（1 专家评委审核 / 2 形式审查）
+const officeRecheckSubStep = shallowRef<'expert' | 'pptReview'>('expert')
+const recheckPptPreviewVisible = shallowRef(false)
+
+function openRecheckPptPreview() {
+  recheckPptPreviewVisible.value = true
+}
+
+/** AN-MWVIPNLL：答辩PPT材料复审按项目逐项给结论——通过直接下结论，不通过弹必填理由（取消则回退待复审） */
+function handleRecheckPptConclusion(row: RecheckPptRow, value: string) {
+  if (value === '通过') {
+    row.conclusion = '通过'
+    ElMessage.success(`已通过“${row.projectName}”的材料复审`)
+    return
+  }
+  ElMessageBox.prompt('不通过的项目将退回申报人补充材料，理由会反馈给申报人。', '材料复审不通过', {
+    confirmButtonText: '确认不通过',
+    cancelButtonText: '取消',
+    type: 'warning',
+    inputType: 'textarea',
+    inputPlaceholder: '请填写不通过理由（如：答辩PPT缺少技术路线页，请补充后重新上传）',
+    inputValidator: (value: string) =>
+      value && value.trim().length >= 5 ? true : '不通过理由至少 5 个字',
+  })
+    .then(({ value: reason }) => {
+      row.conclusion = '不通过'
+      row.reason = reason.trim()
+      ElMessage.success(`已记录“${row.projectName}”材料复审不通过`)
+    })
+    .catch(() => {})
+}
+
+/** AN-MWVIPNLL：全部项目给出材料复审结论后方可提交，提交后流转至「立项入库」 */
+function handleSubmitRecheckResult() {
+  const pending = recheckPptRows.filter((row) => !row.conclusion)
+  if (pending.length) {
+    ElMessage.warning(`还有 ${pending.length} 个项目未给出材料复审结论`)
+    return
+  }
+  officeApprovalStage.value = 'archive'
+  ElMessage.success('材料复审结果已提交，已流转至「立项入库」')
+}
+
+interface RecheckPptRow {
+  projectName: string
+  leader: string
+  pptFile: string
+  fileSize: string
+  submitTime: string
+  /** AN-MWVIPNLL：材料复审结论（通过 / 不通过），未给结论时不显示结论态 */
+  conclusion?: string
+  /** 不通过时的必填理由 */
+  reason?: string
+}
+
+const recheckPptRows = reactive<RecheckPptRow[]>([
+  { projectName: '面向稀疏感知的多模态大模型高效推理系统', leader: '张骁庆', pptFile: '答辩PPT_张骁庆_面向稀疏感知的多模态大模型高效推理系统.pdf', fileSize: '8.6MB', submitTime: '2026-10-28 14:32' },
+  { projectName: '具身智能机器人自主决策与安全控制关键技术研究', leader: '唐郁钰', pptFile: '答辩PPT_唐郁钰_具身智能机器人自主决策与安全控制关键技术.pdf', fileSize: '12.4MB', submitTime: '2026-10-28 15:07' },
+  { projectName: '大规模异构算力集群智能调度与能效优化平台', leader: '胡耀清', pptFile: '答辩PPT_胡耀清_大规模异构算力集群智能调度与能效优化平台.pdf', fileSize: '9.8MB', submitTime: '2026-10-28 16:21' },
+  { projectName: '垂直领域大模型数据治理与评测体系建设', leader: '徐枭云', pptFile: '答辩PPT_徐枭云_垂直领域大模型数据治理与评测体系.pdf', fileSize: '7.2MB', submitTime: '2026-10-29 09:14' },
+  { projectName: '复杂工业场景小样本缺陷检测算法与应用', leader: '宋佳颖', pptFile: '答辩PPT_宋佳颖_复杂工业场景小样本缺陷检测算法与应用.pdf', fileSize: '11.3MB', submitTime: '2026-10-29 10:42' },
+  { projectName: '科学计算大模型驱动的高性能模拟仿真平台', leader: '罗子谦', pptFile: '答辩PPT_罗子谦_科学计算大模型驱动的高性能模拟仿真平台.pdf', fileSize: '10.6MB', submitTime: '2026-10-29 11:05' },
+  { projectName: '模型轻量化与端侧部署优化关键技术研究', leader: '高煜彤', pptFile: '答辩PPT_高煜彤_模型轻量化与端侧部署优化关键技术研究.pdf', fileSize: '6.9MB', submitTime: '2026-10-29 13:58' },
+  { projectName: '可信人工智能：对齐、安全与隐私计算一体化框架', leader: '李承轩', pptFile: '答辩PPT_李承轩_可信人工智能对齐安全与隐私计算一体化框架.pdf', fileSize: '13.1MB', submitTime: '2026-10-29 15:26' },
+])
+
+interface OfficeArchiveRow {
+  projectName: string
+  leader: string
+  subDirection: string
+  score: string
+  strategic: boolean
+  batchCode: string
+}
+
+const officeArchiveRows: OfficeArchiveRow[] = [
+  { projectName: '面向稀疏感知的多模态大模型高效推理系统', leader: '张骁庆', subDirection: '大模型系统与算力优化', score: '92.33', strategic: true, batchCode: 'LXB-2026-Q4' },
+  { projectName: '具身智能机器人自主决策与安全控制关键技术研究', leader: '唐郁钰', subDirection: '具身智能与智能体系统', score: '89.67', strategic: true, batchCode: 'LXB-2026-Q4' },
+  { projectName: '大规模异构算力集群智能调度与能效优化平台', leader: '胡耀清', subDirection: '大模型系统与算力优化', score: '86.00', strategic: true, batchCode: 'LXB-2026-Q4' },
+  { projectName: '垂直领域大模型数据治理与评测体系建设', leader: '宋佳颖', subDirection: '数据智能与评测治理', score: '85.33', strategic: false, batchCode: 'LXB-2026-Q4' },
+  { projectName: '复杂工业场景小样本缺陷检测算法与应用', leader: '罗子谦', subDirection: '机器学习与工业智能', score: '83.67', strategic: false, batchCode: 'LXB-2026-Q4' },
+  { projectName: '科学计算大模型驱动的高性能模拟仿真平台', leader: '李承轩', subDirection: '大模型系统与算力优化', score: '82.33', strategic: true, batchCode: 'LXB-2026-Q4' },
+  { projectName: '模型轻量化与端侧部署优化关键技术研究', leader: '高煜彤', subDirection: '机器学习与工业智能', score: '80.00', strategic: false, batchCode: 'LXB-2026-Q4' },
+  { projectName: '可信人工智能：对齐、安全与隐私计算一体化框架', leader: '吴桐雨', subDirection: '可信人工智能与安全', score: '78.67', strategic: true, batchCode: 'LXB-2026-Q4' },
+]
+
+function selectOfficeRecheckSubStep(step: 'expert' | 'pptReview') {
+  officeRecheckSubStep.value = step
+}
+
+const officeActiveStage = computed<Exclude<OfficeApprovalStage, ''>>(() => officeApprovalStage.value || 'formal')
+
+const officeActiveStageIndex = computed(() => {
+  const stages: Exclude<OfficeApprovalStage, ''>[] = ['guide', 'formal', 'final', 'recheck', 'archive']
+  return stages.indexOf(officeActiveStage.value)
+})
+const officeApprovalStage = shallowRef<OfficeApprovalStage>('')
+
+const facultyRecommendReportVisible = shallowRef(false)
+
+// AN-MWUFAJRV：汇总表数据改响应式——mock 导出的是普通数组，行交换/属性编辑不会触发视图更新
+const finalReviewRows = reactive(finalReviewRowsSource)
+
+const finalSelectedRows = shallowRef<{ seq: number }[]>([])
+
+function handleFinalSelectionChange(rows: { seq: number }[]) {
+  finalSelectedRows.value = rows
+}
+
+function batchSetFinalRecommendation(recommended: boolean) {
+  const selectedSeqs = new Set(finalSelectedRows.value.map((row) => row.seq))
+
+  finalReviewRows.forEach((row) => {
+    if (selectedSeqs.has(row.seq)) {
+      row.recommended = recommended
+    }
+  })
+
+  ElMessage.success(recommended ? '已批量推荐所选项目' : '已批量不推荐所选项目')
+}
+
+watch(
+  officeApprovalStage,
+  () => {
+    if (officeApprovalStage.value) {
+      nextTick(() => wireFinalSummaryTableDrag())
+    }
+  },
+)
+
+onMounted(() => {
+  watch(
+    () => approvalRoleBatchStage.value === 'final',
+    (isFinal) => {
+      if (isFinal) {
+        nextTick(() => wireFinalSummaryTableDrag())
+      }
+    },
+    { immediate: true },
+  )
+})
+
+const officeGuideRejected = shallowRef<{ reason: string; at: string } | null>(null)
+
+// 管理办审批入口层：先选批次，再进入五阶段审批流（batch_code 为空 = 批次浏览态）
+const officeApprovalSelectedBatchCode = shallowRef('')
+const officeApprovalSelectedBatch = computed(() =>
+  initiationBatchMockRows.find(
+    row => (row.batch_code ?? row.id) === officeApprovalSelectedBatchCode.value,
+  ),
+)
+
+function enterOfficeBatchApproval(batch: InitiationBatchMockRow) {
+  officeApprovalSelectedBatchCode.value = batch.batch_code ?? batch.id
+  officeApprovalStage.value = 'guide'
+  officeGuideRejected.value = null
+}
+
+function backToOfficeBatchPick() {
+  officeApprovalSelectedBatchCode.value = ''
+  officeApprovalStage.value = 'guide'
+  officeGuideRejected.value = null
+}
+
+/**
+ * PMO 立项管理流转线（AN-MWUCRLIL：合并「立项指南发布」+「形式审查」入口，以批次为轴）：
+ * 先选批次，再按五阶段流转线处理：guide 指南发布 / formal 形式审查 / final 初审 / recheck 复审 / archive 立项入库
+ */
+const adminInitiationFlowStageOrder = ['guide', 'formal', 'final', 'recheck', 'archive'] as const
+type AdminInitiationFlowStage = (typeof adminInitiationFlowStageOrder)[number]
+
+const adminInitiationFlowBatchCode = shallowRef('')
+const adminInitiationFlowBatch = computed(() =>
+  initiationBatchMockRows.find(
+    (row) => (row.batch_code ?? row.id) === adminInitiationFlowBatchCode.value,
+  ),
+)
+const adminInitiationFlowStage = shallowRef<AdminInitiationFlowStage>('guide')
+const adminInitiationFlowStageIndex = computed(() =>
+  adminInitiationFlowStageOrder.indexOf(adminInitiationFlowStage.value),
+)
+
+/** AN-MWUF30LW：批次实际所处流转阶段（mock flowStage），驱动步骤条 done 判定——不同批次分布不同阶段 */
+const adminInitiationFlowBatchStageIndex = computed(() => {
+  const stage = adminInitiationFlowBatch.value?.flowStage
+
+  if (!stage) {
+    return -1
+  }
+
+  return adminInitiationFlowStageOrder.indexOf(stage)
+})
+
+
+/** FD-MWVNYLE8：学部批次流转线当前阶段索引（流转靠页脚提交流转，阶段即实际进度） */
+const approvalRoleBatchStageIndex = computed(() =>
+  ['guide', 'formal', 'final', 'recheck', 'archive'].indexOf(approvalRoleBatchStage.value),
+)
+
+/** 批次流转阶段中文标签（批次卡片与流转线上下文共用） */
+const batchFlowStageLabels: Record<AdminInitiationFlowStage, string> = {
+  guide: '指南发布',
+  formal: '形式审查中',
+  final: '初审中',
+  recheck: '复审中',
+  archive: '已入库',
+}
+
+// AN-MWUG2PQ5/AN-MWUG3BER：PMO 初审阶段（三学部结果汇总）与复审阶段（指派评委+过程监控）状态
+// 学部复议会修改 recommended/recommendedCount，mock 导出的普通数组须 reactive 包装才能触发视图更新
+const pmoFinalFacultySummaries = reactive(pmoFinalFacultySummariesSource)
+const pmoFinalActiveAcademy = shallowRef(pmoFinalFacultySummaries[0]?.academy ?? '')
+const pmoRecheckSubStep = shallowRef<'assign' | 'monitor'>('assign')
+const pmoFinalDeclaredTotal = computed(() =>
+  pmoFinalFacultySummaries.reduce((sum, item) => sum + item.declaredCount, 0),
+)
+const pmoFinalRecommendedTotal = computed(() =>
+  pmoFinalFacultySummaries.reduce((sum, item) => sum + item.recommendedCount, 0),
+)
+const pmoRecheckMonitorDoneCount = computed(
+  () => pmoRecheckMonitorRows.filter((row) => row.status === '已完成').length,
+)
+const pmoRecheckMonitorOngoingCount = computed(
+  () => pmoRecheckMonitorRows.filter((row) => row.status === '进行中').length,
+)
+const pmoRecheckMonitorPendingCount = computed(
+  () => pmoRecheckMonitorRows.filter((row) => row.status === '待启动').length,
+)
+
+function getRecheckMonitorStatusType(status: PMORecheckMonitorRow['status']) {
+  if (status === '已完成') return 'success'
+  if (status === '进行中') return 'warning'
+  return 'info'
+}
+
+// 学部复议（线下合议会）：会后由 PMO 在此登记对各学部推荐项目的剔除结论
+const pmoRecheckDialogVisible = shallowRef(false)
+const pmoRecheckExcludedKeys = ref<string[]>([])
+const pmoRecheckDialogNote = ref('')
+
+function getPmoFinalRowKey(academy: string, projectName: string) {
+  return `${academy}::${projectName}`
+}
+
+/** 各学部推荐且尚未被复议剔除的项目（供复议登记勾选） */
+const pmoRecheckRegisterOptions = computed(() =>
+  pmoFinalFacultySummaries.map((faculty) => ({
+    academy: faculty.academy,
+    rows: faculty.rows.filter((row) => row.recommended && !row.recheckExcluded),
+  })),
+)
+
+function openPmoRecheckDialog() {
+  pmoRecheckExcludedKeys.value = []
+  pmoRecheckDialogNote.value = ''
+  pmoRecheckDialogVisible.value = true
+}
+
+/** 确认登记：勾选项目标记为「复议剔除」，进入复审的项目数与统计自动联动 */
+function submitPmoRecheckRegistration() {
+  if (!pmoRecheckExcludedKeys.value.length) {
+    ElMessage.warning('请先勾选复议决定剔除的项目，或点取消')
+    return
+  }
+  let excluded = 0
+  for (const key of pmoRecheckExcludedKeys.value) {
+    const separator = key.indexOf('::')
+    const academy = key.slice(0, separator)
+    const projectName = key.slice(separator + 2)
+    const faculty = pmoFinalFacultySummaries.find((item) => item.academy === academy)
+    const row = faculty?.rows.find((item) => item.projectName === projectName)
+    if (row) {
+      row.recheckExcluded = true
+      excluded += 1
+    }
+  }
+  pmoRecheckDialogVisible.value = false
+  ElMessage.success(`学部复议结论已登记：共剔除 ${excluded} 个项目，其余项目进入复审`)
+}
+
+/** 学部复议后真正进入复审的项目数 */
+const pmoRecheckAdmittedTotal = computed(() =>
+  pmoFinalFacultySummaries.reduce(
+    (sum, faculty) => sum + faculty.rows.filter((row) => row.recommended && !row.recheckExcluded).length,
+    0,
+  ),
+)
+
+/** 学部复议剔除的项目数 */
+const pmoRecheckExcludedTotal = computed(() =>
+  pmoFinalFacultySummaries.reduce(
+    (sum, faculty) => sum + faculty.rows.filter((row) => row.recommended && row.recheckExcluded).length,
+    0,
+  ),
+)
+
+function getFinalRecommendTag(row: FinalReviewSummaryRow): { type: 'danger' | 'success' | 'info'; text: string } {
+  if (row.recommended && row.recheckExcluded) return { type: 'danger', text: '复议剔除' }
+  if (row.recommended) return { type: 'success', text: '推荐复审' }
+  return { type: 'info', text: '不推荐' }
+}
+
+/** AN-MWVFPQVT：项目评审详情 — 点击终审表/通过清单表项目名称打开，展示评委打分明细（类型见 FinalScoreDetailDialog） */
+const finalScoreDetailVisible = shallowRef(false)
+const finalScoreDetailTarget = shallowRef<ScoreDetailTarget | null>(null)
+
+function openFinalScoreDetail(row: FinalReviewSummaryRow) {
+  const tag = getFinalRecommendTag(row)
+  finalScoreDetailTarget.value = {
+    projectName: row.projectName,
+    metaText: `${row.leader} · ${row.subDirection} · 推荐次序 ${row.seq}`,
+    score: { label: '最终得分', value: row.score },
+    tag: { type: tag.type, text: tag.text },
+  }
+  finalScoreDetailVisible.value = true
+}
+
+/** 形式审查报告页通过清单 → 项目评审详情（三评委打分） */
+function openFormalPassedScoreDetail(row: { projectName: string; leader?: string; code?: string }) {
+  finalScoreDetailTarget.value = {
+    projectName: row.projectName,
+    metaText: `${row.code ?? '-'} · ${row.leader ?? '-'} · 形式审查已通过`,
+  }
+  finalScoreDetailVisible.value = true
+}
+
+/** AN-MWVFRNN7：复审报告 → 项目评审详情（按复审评委名单展示打分） */
+function openFacultyRecheckScoreDetail(row: PMORecheckMonitorRow) {
+  finalScoreDetailTarget.value = {
+    projectName: row.projectName,
+    metaText: `${row.leader} · ${row.academy} · 复审评审（${row.recheckReviewers.length} 位评委）`,
+    score: { label: '初审得分', value: row.finalScore },
+    reviewers: row.recheckReviewers,
+  }
+  finalScoreDetailVisible.value = true
+}
+
+/** AN-MWVINCCJ：PMO 立项入库 — 复审入选项目 → 项目评审详情 */
+function openOfficeArchiveScoreDetail(row: OfficeArchiveRow) {
+  finalScoreDetailTarget.value = {
+    projectName: row.projectName,
+    metaText: `${row.leader} · ${row.subDirection} · 复审通过（待管理办审定）`,
+    score: { label: '评审得分', value: row.score },
+  }
+  finalScoreDetailVisible.value = true
+}
+
+/** AN-MWVFRNN7/S94C：学部负责人视角只看本学部（人工智能核心学部）数据 */
+const facultyLeaderAcademy = '人工智能核心学部'
+const facultyRecheckMonitorRows = computed(() =>
+  pmoRecheckMonitorRows.filter((row) => row.academy === facultyLeaderAcademy),
+)
+/** 立项入库：本学部最终复审通过（复审已完成）的项目 */
+const facultyArchiveRows = computed(() =>
+  facultyRecheckMonitorRows.value.filter((row) => row.status === '已完成'),
+)
+
+function getBatchFlowStageLabel(batch: InitiationBatchMockRow): string {
+  return batch.flowStage ? batchFlowStageLabels[batch.flowStage] : ''
+}
+
+function enterAdminInitiationFlow(batch: InitiationBatchMockRow) {
+  adminInitiationFlowBatchCode.value = batch.batch_code ?? batch.id
+  // AN-MWUF30LW：进入流转线直接定位到批次当前所处阶段，而不是固定从第 1 步开始
+  adminInitiationFlowStage.value = batch.flowStage ?? 'guide'
+}
+
+function backToAdminInitiationFlowPick() {
+  adminInitiationFlowBatchCode.value = ''
+  adminInitiationFlowStage.value = 'guide'
+}
+
+function handleAdminFlowWorkflowSettings() {
+  if (adminInitiationFlowBatch.value) {
+    openBatchWorkflowSettings(adminInitiationFlowBatch.value)
+  }
+}
+
+function previewAdminFlowGuideFile() {
+  const batch = adminInitiationFlowBatch.value
+
+  if (!batch?.batch_guide_file) {
+    ElMessage.warning('该批次暂无立项指南文件')
+    return
+  }
+
+  revokeLeaderGuidePreviewUrl()
+  leaderGuidePreviewTitle.value = batch.batch_guide_file.name
+  leaderGuidePreviewUrl.value = createLeaderGuideFileUrl(batch)
+  leaderGuidePreviewVisible.value = true
+}
+
+function downloadAdminFlowGuideFile() {
+  const batch = adminInitiationFlowBatch.value
+
+  if (!batch?.batch_guide_file) {
+    ElMessage.warning('该批次暂无可下载的立项指南')
+    return
+  }
+
+  const fileUrl = createLeaderGuideFileUrl(batch)
+  const anchor = document.createElement('a')
+
+  anchor.href = fileUrl
+  anchor.download = batch.batch_guide_file.name
+  anchor.click()
+}
+
+/** 管理办审批页展示的立项指南：优先取当前选中批次，其次与 PMO 批次编码匹配，最后取第一个带指南的批次 */
+const officeGuideBatch = computed(
+  () =>
+    officeApprovalSelectedBatch.value ??
+    initiationBatchMockRows.find(row => row.batch_code === launchForm.batch_code) ??
+    initiationBatchMockRows.find(row => row.batch_guide_file),
+)
+
+function previewOfficeGuideFile() {
+  const batch = officeGuideBatch.value
+  if (!batch || !batch.batch_guide_file) {
+    ElMessage.warning('PMO 尚未上传立项指南文件')
+    return
+  }
+  revokeLaunchGuidePreviewUrl()
+  launchGuidePreviewUrl.value = createLeaderGuideFileUrl(batch)
+  launchGuidePreviewVisible.value = true
+}
+
+function handleOfficeGuideApprove() {
+  officeApprovalStage.value = 'formal'
+  officeGuideRejected.value = null
+  resetOfficeLaunchFeedback()
+  ElMessage.success('立项指南发布审批已通过，已流转至「形式审查」')
+}
+
+/** AN-MWVFLWS6：形式审查环节提交——行内已逐项下结论，此处提交结果、生成形式审查报告并流转至「初审阶段」 */
+function handleSubmitFormalReport() {
+  officeApprovalStage.value = 'final'
+  resetOfficeLaunchFeedback()
+  ElMessage.success('形式审查结果已提交，形式审查报告已生成，已流转至「初审阶段」')
+}
+
+function handleOfficeGuideReject() {
+  ElMessageBox.prompt('驳回后立项指南将退回 PMO 修改，驳回理由会反馈给 PMO。', '驳回确认', {
+    confirmButtonText: '确认驳回',
+    cancelButtonText: '取消',
+    type: 'warning',
+    inputType: 'textarea',
+    inputPlaceholder: '请填写驳回理由（如：申报时间设置有误，请调整后重新发起）',
+    inputValidator: (value: string) =>
+      value && value.trim().length >= 5 ? true : '驳回理由至少 5 个字',
+  })
+    .then(({ value }) => {
+      const reason = value.trim()
+      const at = new Date().toLocaleString('zh-CN')
+      officeGuideRejected.value = { reason, at }
+      setOfficeLaunchRejected(reason, at)
+      ElMessage.success('已驳回，驳回理由已反馈至 PMO')
+    })
+    .catch(() => {})
+}
+
+function toggleStrategicStar(row: FinalReviewSummaryRow) {
+  row.strategicStar = !row.strategicStar
+}
+
+const finalSummaryTableRef = shallowRef<{
+  $el: HTMLElement
+}>()
+let finalSummaryTableWired = false
+
+function injectFinalRowDragAttrs() {
+  const table = finalSummaryTableRef.value?.$el as HTMLElement | undefined
+  if (!table) {
+    return
+  }
+
+  const bodyRows = table.querySelectorAll<HTMLElement>('.el-table__body tbody tr')
+  bodyRows.forEach((tr, index) => {
+    tr.setAttribute('data-final-row-index', String(index))
+    tr.setAttribute('draggable', 'true')
+    tr.classList.add('final-row--draggable')
+  })
+}
+
+function wireFinalSummaryTableDrag() {
+  if (finalSummaryTableWired || !finalSummaryTableRef.value) {
+    return
+  }
+
+  const el = finalSummaryTableRef.value.$el as HTMLElement
+  injectFinalRowDragAttrs()
+  el.addEventListener('dragstart', (event) => {
+    const row = (event.target as HTMLElement).closest('tr[data-final-row-index]')
+    const index = Number(row?.getAttribute('data-final-row-index'))
+
+    finalDragIndex = Number.isFinite(index) ? index : -1
+    if (event instanceof DragEvent && event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move'
+    }
+  })
+  el.addEventListener('dragover', (event) => {
+    event.preventDefault()
+  })
+  el.addEventListener('drop', (event) => {
+    event.preventDefault()
+    const row = (event.target as HTMLElement).closest('tr[data-final-row-index]')
+    const index = Number(row?.getAttribute('data-final-row-index'))
+
+    if (row && Number.isFinite(index)) {
+      handleFinalRowDrop(index)
+      nextTick(() => injectFinalRowDragAttrs())
+    }
+  })
+  finalSummaryTableWired = true
+}
+
+let finalDragIndex = -1
+
+function handleFinalRowDragStart(index: number, event: DragEvent) {
+  finalDragIndex = index
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+  }
+}
+
+function handleFinalRowDrop(index: number) {
+  if (finalDragIndex < 0 || finalDragIndex === index) {
+    return
+  }
+
+  const [moved] = finalReviewRows.splice(finalDragIndex, 1)
+  finalReviewRows.splice(index, 0, moved)
+  refreshFinalReviewOrder()
+  finalDragIndex = -1
+  ElMessage.success('已调整推荐次序')
+}
+
+function moveFinalReviewRow(row: FinalReviewSummaryRow, direction: -1 | 1) {
+  // AN-MWUFAJRV：slot 的 row 是响应式代理，与原数组元素引用不等，用 seq 值定位
+  const index = finalReviewRows.findIndex((item) => item.seq === row.seq)
+  const target = index + direction
+
+  if (index < 0 || target < 0 || target >= finalReviewRows.length) {
+    return
+  }
+
+  const rows = finalReviewRows
+  ;[rows[index], rows[target]] = [rows[target], rows[index]]
+  refreshFinalReviewOrder()
+}
+
+/** AN-MWUFAJRV：推荐次序直接输入目标名次调序（比连续点上移/下移更贴近实际操作） */
+function moveFinalReviewRowTo(row: FinalReviewSummaryRow, targetSeq: number) {
+  const from = finalReviewRows.findIndex((item) => item.seq === row.seq)
+  const clamped = Math.max(1, Math.min(finalReviewRows.length, Math.round(targetSeq)))
+
+  if (from < 0 || from === clamped - 1) {
+    row.seq = from + 1
+    return
+  }
+
+  const [moved] = finalReviewRows.splice(from, 1)
+  finalReviewRows.splice(clamped - 1, 0, moved)
+  refreshFinalReviewOrder()
+  ElMessage.success(`已调整至第 ${clamped} 名`)
+}
+
+/** AN-MWUFAJRV：推荐报告行内字段编辑（外部重大项目 / 具体评审意见） */
+function saveFinalReviewRowField(row: FinalReviewSummaryRow, field: 'majorProject' | 'reviewComment', value: string) {
+  row[field] = value
+  ElMessage.success(field === 'majorProject' ? '已更新外部重大项目信息' : '已更新评审意见')
+}
+
+function refreshFinalReviewOrder() {
+  finalReviewRows.forEach((row, index) => {
+    const newSeq = index + 1
+
+    if (row.originalSeq !== newSeq) {
+      row.rankChange = newSeq < row.originalSeq ? 'up' : 'down'
+    } else {
+      row.rankChange = '-'
+    }
+
+    row.seq = newSeq
+  })
+}
+
+const facultyApprovalFlowSteps = [
+  '立项指南发布',
+  '形式审查',
+  '初审阶段',
+  '复审阶段',
+  '立项入库',
+] as const
+
+function selectFacultyApprovalFlowStep(index: number) {
+  const stages: ApprovalRoleBatchStage[] = ['guide', 'formal', 'final', 'recheck', 'archive']
+  approvalRoleBatchStage.value = stages[index] ?? 'formal'
+}
+
+const approvalFlowSteps = [
+  '发起项目批次',
+  '形式审查',
+  '管理办审批',
+  '专家评委评审',
+  '学部推荐立项',
+  '管理办审批',
+] as const
 type ApprovalDecision = 'APPROVE' | 'REJECT'
 type ProjectParticipantRecruitmentView = 'square' | 'applications' | 'projects'
 
@@ -267,7 +979,10 @@ function isProjectParticipantRole(roleKey: RoleKey | undefined): roleKey is 'pro
 const selectedPrimaryMenuKey = shallowRef(
   isProjectParticipantRole(route.meta.roleKey as RoleKey | undefined)
     ? 'projects'
-    : route.query.batchId || route.query.initiationAction === 'launch' || route.query.applicationView === 'project-application'
+    : route.query.batchId ||
+        route.query.initiationAction === 'launch' ||
+        route.query.applicationView === 'project-application' ||
+        route.query.applicationView === 'declaration-review'
       ? 'application'
       : 'dashboard',
 )
@@ -279,6 +994,9 @@ const featureIconModules = import.meta.glob<string>('../dataset/icon/*.png', {
 
 const landingCardIconFileMap: Record<string, string> = {
   申报批次管理: 'batch-management.png',
+  立项指南发布: 'project-application.png',
+  立项管理: 'project-application.png',
+  形式审查: 'declaration-review.png',
   项目申报: 'project-application.png',
   申报审查: 'declaration-review.png',
   评审组织: 'review-organization.png',
@@ -287,6 +1005,7 @@ const landingCardIconFileMap: Record<string, string> = {
   外部项目建档: 'external-project-archive.png',
   申报与立项查询: 'application-query.png',
   发起立项: 'initiation-launch.png',
+  立项申请: 'project-application.png',
   组织评审: 'review-organization.png',
   外部项目导入: 'external-import.png',
   项目库: 'project-library.png',
@@ -484,21 +1203,21 @@ const moduleDefinitions: Record<string, LandingModule> = {
       {
         title: '项目启动',
         desc: '从项目库选择单个或多个项目，完成项目启动操作',
-        role: '科研项目管理员',
+        role: 'PMO',
         iconText: '启',
         routeSegment: 'project-start',
       },
       {
         title: '项目变更',
         desc: '基于项目库台账进行项目新增、编辑、删除、查询和详情查看',
-        role: '科研项目管理员',
+        role: 'PMO',
         iconText: '变',
         routeSegment: 'project-change',
       },
       {
         title: '项目招募情况',
         desc: '查看全院项目招募、学生申报、负责人审批和成员关系结果',
-        role: '科研项目管理员',
+        role: 'PMO',
         iconText: '招',
         routeSegment: 'project-recruitment-overview',
       },
@@ -594,7 +1313,7 @@ const moduleDefinitions: Record<string, LandingModule> = {
       {
         title: '公告发布',
         desc: '复用季度推进会公告发布能力，统一发布评审结果与通知公告',
-        role: '科研项目管理员',
+        role: 'PMO',
         iconText: '告',
         routeSegment: 'base-announcement-publishing',
       },
@@ -625,31 +1344,59 @@ const moduleDefinitions: Record<string, LandingModule> = {
 }
 
 const roleModuleDefinitions: Partial<Record<RoleKey, Partial<Record<string, LandingModule>>>> = {
+  reviewer: {
+    application: {
+      title: '项目申报与立项',
+      eyebrow: '评委',
+      desc: '查看并处理分配给当前评委的立项评审任务。',
+      tip: '仅展示评委可办理功能',
+      items: [
+        {
+          title: '我的评审任务',
+          desc: '进入项目评审列表，查看待评审项目并完成评分与意见',
+          role: '评委',
+          iconText: '评',
+          routeSegment: 'project-review',
+        },
+      ],
+    },
+  },
+  researchDepartmentLeader: {
+    application: {
+      title: '项目申报与立项',
+      eyebrow: '管理办负责人',
+      desc: '查看并处理需要管理办负责人审批的项目批次事项。',
+      tip: '仅展示管理办负责人可办理功能',
+      items: [
+        {
+          title: '项目审批',
+          desc: '进入管理办项目审批页面，处理批次内项目的审批事项',
+          role: '管理办负责人',
+          iconText: '批',
+          routeSegment: 'office-project-approval',
+        },
+      ],
+    },
+  },
   researchProjectAdmin: {
     application: {
       title: '项目申报与立项',
-      eyebrow: '科研项目管理员',
-      desc: '面向科研项目管理员，聚焦立项批次、申报审查和评审组织。',
-      tip: '仅展示科研项目管理员可办理功能',
+      eyebrow: 'PMO',
+      desc: '面向PMO，聚焦立项批次、申报审查和评审组织。',
+      tip: '仅展示PMO可办理功能',
       items: [
         {
-          title: '项目申报',
-          desc: '进入立项批次页面，发起立项并监管申报流程',
-          role: '科研项目管理员',
+          title: '立项管理',
+          desc: '以批次为轴处理立项全流程：立项指南发布、申报跟踪与形式审查',
+          role: 'PMO',
           iconText: '申',
+          hint: 'test',
           routeSegment: 'initiation-batches',
         },
         {
-          title: '申报审查',
-          desc: '开展申报材料形式审查、材料核验和退回修改',
-          role: '科研项目管理员',
-          iconText: '审',
-          routeSegment: 'initiation-review',
-        },
-        {
-          title: '组织评审',
+          title: '审批流配置',
           desc: '组织专家评审，配置评审任务并跟踪评审进度',
-          role: '科研项目管理员',
+          role: 'PMO',
           iconText: '组',
         },
       ],
@@ -660,13 +1407,13 @@ const roleModuleDefinitions: Partial<Record<RoleKey, Partial<Record<string, Land
       title: '项目申报与立项',
       eyebrow: '项目负责人',
       desc: '查看可申报的科研项目立项批次，阅读申报要求并提交项目申报材料。',
-      tip: '项目负责人从项目申报入口进入批次列表和填写申报流程',
+      tip: '项目负责人从立项申请入口进入批次列表和填写申报流程',
       items: [
         {
-          title: '项目申报',
-          desc: '进入可申报批次列表，查看批次详情并填写项目申报书',
+          title: '立项申请',
+          desc: '查看正在申报中的立项批次，已提交申报的批次可直接查看我的申请',
           role: '项目负责人',
-          iconText: '申',
+          iconText: '立',
           routeSegment: 'initiation-batches',
         },
       ],
@@ -891,6 +1638,8 @@ const featureDescriptions: Record<string, string> = {
   'project-review': '查看分配项目材料并完成评分、评级和意见填写',
   'review-results': '查看本人参与评审的结果与历史意见',
   'initiation-batches': '查看可申报立项批次，阅读指南并进入项目申报',
+  'application-projects': '查看本人已提交申报书的项目列表',
+  'application-project-detail': '查看申报书填写内容（不含承诺书）',
   'initiation-project-detail': '查看申报立项项目详情、材料、评审进度和当前办理节点',
   'initiation-workflow-settings': '配置当前立项批次的审批节点、人员和流转规则',
   'workflow-config': '统一维护季度推进会、立项等公共审批流程模板',
@@ -953,9 +1702,12 @@ const featurePrimaryMap: Record<string, string> = {
   'review-management': 'quarterly',
   'review-material-submission': 'quarterly',
   'material-achievement-maintenance': 'quarterly',
-  'project-review': 'quarterly',
+  'project-review': 'application',
   'review-results': 'quarterly',
   'initiation-batches': 'application',
+  'application-projects': 'application',
+  'application-project-detail': 'application',
+  'reviewer-project-review-detail': 'application',
   'initiation-batch-detail': 'application',
   'initiation-apply': 'application',
   'initiation-project-detail': 'application',
@@ -974,6 +1726,7 @@ const featurePrimaryMap: Record<string, string> = {
   '360-evaluation': 'quarterly',
   'review-launch': 'quarterly',
   'review-config-detail': 'quarterly',
+  'office-project-approval': 'application',
 }
 
 const primaryBreadcrumbLabels: Record<string, string> = {
@@ -1020,6 +1773,9 @@ const featureBreadcrumbLabels: Record<string, string> = {
   'project-review': '项目评审',
   'review-results': '评审结果',
   'initiation-batches': '项目申报与立项',
+  'application-projects': '我的项目',
+  'application-project-detail': '项目详情',
+  'reviewer-project-review-detail': '评审打分',
   'initiation-batch-detail': '批次详情',
   'initiation-apply': '填写申报',
   'initiation-project-detail': '项目详情',
@@ -1037,6 +1793,7 @@ const featureBreadcrumbLabels: Record<string, string> = {
   'recruitment-projects': '我的项目',
   '360-evaluation': '360 环评',
   'review-launch': '发起评审',
+  'office-project-approval': '项目审批',
 }
 
 const researchWorkbenchShortcuts: WorkbenchShortcut[] = [
@@ -1205,6 +1962,7 @@ const functionLinks = computed(() => {
 const roleFeatureCards = computed<LandingCard[]>(() =>
   functionLinks.value
     .filter((feature) => feature.routeSegment !== 'dashboard')
+    .filter((feature) => feature.routeSegment !== 'application-projects')
     .map((feature, index) => {
       const [accent, soft] = moduleCardThemes[index % moduleCardThemes.length]
 
@@ -1310,10 +2068,7 @@ const currentFeatureKey = computed(
 const isDashboardFeature = computed(() => currentFeatureKey.value === 'dashboard')
 
 const isResearchAdminWorkbench = computed(
-  () =>
-    showModuleLanding.value &&
-    currentRoleKey.value === 'researchProjectAdmin' &&
-    activePrimaryMenuKey.value === 'dashboard',
+  () => showModuleLanding.value && activePrimaryMenuKey.value === 'dashboard',
 )
 
 watch(
@@ -1390,16 +2145,22 @@ const financeViewKey = computed<FinanceViewKey>(() => {
 })
 
 const isInitiationLaunchPage = computed(() => route.query.initiationAction === 'launch')
-const isAdminApplicationReviewPage = computed(
+const isAdminDeclarationReviewLanding = computed(
   () =>
     currentRoleKey.value === 'researchProjectAdmin' &&
     route.query.applicationView === 'declaration-review',
+)
+const isAdminDeclarationReviewBatchPage = computed(
+  () => isAdminDeclarationReviewLanding.value && !route.query.batchId,
+)
+const isAdminApplicationReviewPage = computed(
+  () => isAdminDeclarationReviewLanding.value && Boolean(route.query.batchId),
 )
 const isAdminApplicationProjectPage = computed(
   () =>
     currentRoleKey.value === 'researchProjectAdmin' &&
     (route.query.applicationView === 'project-application' ||
-      Boolean(route.query.batchId) ||
+      (route.query.applicationView !== 'declaration-review' && Boolean(route.query.batchId)) ||
       route.query.initiationAction === 'launch'),
 )
 const workbenchShortcutPage = shallowRef(0)
@@ -1438,7 +2199,11 @@ const leaderBatchPage = shallowRef(1)
 const leaderBatchPageSize = shallowRef(4)
 const leaderBatchLoading = shallowRef(false)
 const leaderBatchError = shallowRef('')
-const approvalRoleInitiationView = shallowRef<ApprovalRoleInitiationView>('self')
+const approvalRoleInitiationView = shallowRef<ApprovalRoleInitiationView>(
+  route.query.batchId && route.meta.roleKey === 'facultyLeader'
+    ? 'projectApproval'
+    : 'self',
+)
 const approvalRoleProjectPage = shallowRef(1)
 const approvalRoleProjectPageSize = shallowRef(6)
 const approvalDialogVisible = shallowRef(false)
@@ -1446,6 +2211,65 @@ const approvalTargetProject = shallowRef<InitiationProjectMockRow | null>(null)
 const approvalDecision = shallowRef<ApprovalDecision>('APPROVE')
 const approvalRejectReason = shallowRef('')
 const approvalSubmitting = shallowRef(false)
+const reviewReportVisible = shallowRef(false)
+
+interface FormalReviewPassedRow {
+  code: string
+  projectName: string
+  leader: string
+  external: boolean
+}
+
+interface FormalReviewRejectedRow {
+  projectName: string
+  leader: string
+  reason: string
+}
+
+const formalReviewReport = {
+  title: 'AI 核心学部・2026 年第一批・基础培育类',
+  version: '已定版 V1.0',
+  head: [
+    { label: '批次名称', value: '2026 年第一批，基础培育类项目申报' },
+    { label: '学部名称', value: 'AI 核心学部' },
+    { label: '报告版本号', value: 'V1.0' },
+    { label: '定版时间', value: '2026-11-06 14:32' },
+    { label: '审查单位', value: '科研管理办公室（PMO）' },
+  ],
+  submittedCount: 12,
+  passedCount: 9,
+  passedRate: '75.0%',
+  externalPassedCount: 2,
+  rejectedCount: 3,
+  passedRows: [
+    { code: 'AP-2026-B1-001', projectName: '面向具身智能的可信对齐关键技术研究', leader: '王赫', external: false },
+    { code: 'AP-2026-B1-004', projectName: '机器人操作技能的模仿学习泛化', leader: '闵耀森', external: false },
+    { code: 'AP-2026-B1-008', projectName: '多智能体协同决策与安全验证', leader: '杨耀东', external: false },
+    { code: 'AP-2026-B1-011', projectName: '大模型推理加速与显存优化', leader: '陈宇轩', external: false },
+    { code: 'AP-2026-B1-013', projectName: '世界模型与具身导航基础研究', leader: '李雨桐', external: false },
+    { code: 'AP-2026-B1-015', projectName: '面向边缘设备的轻量化模型压缩', leader: '赵文博', external: false },
+    { code: 'AP-2026-B1-017', projectName: '联邦学习隐私保护关键技术研究', leader: '闵耀森', external: false },
+    { code: 'AP-2026-B1-019', projectName: '面向工业质检的视觉大模型微调平台', leader: '周建国', external: true },
+    { code: 'AP-2026-B1-021', projectName: '开源大模型推理服务优化实践', leader: '顾一凡', external: true },
+  ] as FormalReviewPassedRow[],
+  rejectedRows: [
+    {
+      projectName: '面向教育场景的知识追踪算法研究',
+      leader: '孙浩然',
+      reason: '申报范围不符：申请人所属研究方向不在本次批次支持范围内',
+    },
+    {
+      projectName: '基于图神经网络的药物分子生成方法研究',
+      leader: '吴沛霖',
+      reason: '申报数量超限：同一项目负责人本次已立项 1 项',
+    },
+    {
+      projectName: '跨模态检索与推荐系统联合优化',
+      leader: '郑一鸣',
+      reason: '申报人身份不符：不在本批次申报面向的目标群体内',
+    },
+  ] as FormalReviewRejectedRow[],
+}
 const leaderGuidePreviewVisible = shallowRef(false)
 const leaderGuidePreviewUrl = shallowRef('')
 const leaderGuidePreviewTitle = shallowRef('')
@@ -1458,7 +2282,38 @@ const projectApplicationActiveTab = shallowRef<'form' | 'preview'>('form')
 const projectApplicationSaving = shallowRef(false)
 const projectApplicationSubmitting = shallowRef(false)
 const projectApplicationPreviewGenerating = shallowRef(false)
-const launchProjectCategoryOptions = ['纵向', '横向', '校内'] as const
+const launchProjectCategoryOptions = [
+  '基础培育类',
+  '院内重大专项',
+  '学生自主立项',
+  '预研项目',
+  '未来实验室项目',
+] as const
+const launchOwnerOrganizationOptions = [
+  '北京中关村学院',
+  '中关村人工智能研究院',
+  '科研管理办公室',
+  'AI&IT 学部',
+  '未来实验室',
+] as const
+const launchFundingSourceOptions = ['院拨经费', '纵向配套经费', '横向合作经费', '自筹经费'] as const
+const launchBudgetModeOptions = [
+  '标准预算模板',
+  '人工成本预算模板',
+  '设备与材料预算模板',
+  '自定义预算模板',
+] as const
+const launchWorkflowTemplateOptions = ['立项审批流（默认）', '立项审批流（加学部复核）', '立项审批流（预研简版）'] as const
+const launchFormTemplateOptions = ['基础培育类申报表单', '重大专项申报表单', '学生自主立项申报表单', '通用申报表单'] as const
+const launchTargetGroupOptions = [
+  '北京中关村学院',
+  '中关村人工智能研究院',
+  'AI&IT 学部',
+  '全体科研人员',
+  '项目导师',
+  '学生',
+] as const
+const launchDeclarationLimitOptions = ['否', '是'] as const
 const launchFormRef = shallowRef<FormInstance>()
 const launchGuideUploadRef = shallowRef<UploadInstance>()
 const launchGuideFile = shallowRef<UploadFile | null>(null)
@@ -1466,28 +2321,45 @@ const launchGuidePreviewVisible = shallowRef(false)
 const launchGuidePreviewUrl = shallowRef('')
 const initialLaunchBatchSeed = getNextAvailableLaunchBatchSeed()
 const launchForm = reactive<LaunchInitiationForm>({
-  batch_name: initialLaunchBatchSeed.name,
+  owner_organizations: ['北京中关村学院'],
+  project_category: '基础培育类',
   batch_code: initialLaunchBatchSeed.code,
-  project_category: '纵向',
+  batch_name: initialLaunchBatchSeed.name,
+  funding_source: '院拨经费',
+  budget_mode: '标准预算模板',
+  workflow_template: '立项审批流（默认）',
+  form_template: '基础培育类申报表单',
   batch_introduction: '',
   batch_apply_start: initialLaunchBatchSeed.applyStart,
   batch_apply_deadline: initialLaunchBatchSeed.applyDeadline,
-  batch_limit_count: 0,
   batch_guide_file: '',
-  remark: '',
+  target_groups: ['北京中关村学院'],
+  launch_owner: currentUser.value?.displayName ?? '张晓明',
+  declaration_limit: '否',
 })
 const launchFormRules = computed<FormRules<LaunchInitiationForm>>(() => ({
-  batch_name: [{ required: true, message: '请输入批次名称', trigger: 'blur' }],
+  owner_organizations: [{ required: true, type: 'array', min: 1, message: '请选择项目归属组织', trigger: 'change' }],
+  project_category: [{ required: true, message: '请选择科研项目类别', trigger: 'change' }],
   batch_code: [
     { required: true, message: '请输入批次编码', trigger: 'blur' },
     { validator: validateBatchCodeUnique, trigger: 'blur' },
   ],
-  project_category: [{ required: true, message: '请选择项目类别', trigger: 'change' }],
+  batch_name: [
+    { required: true, message: '请输入批次名称', trigger: 'blur' },
+    { max: 50, message: '批次名称不能超过 50 字', trigger: 'blur' },
+  ],
+  funding_source: [{ required: true, message: '请选择项目经费来源', trigger: 'change' }],
+  budget_mode: [{ required: true, message: '请选择项目预算方式', trigger: 'change' }],
+  workflow_template: [{ required: true, message: '请选择绑定流程模板', trigger: 'change' }],
+  form_template: [{ required: true, message: '请选择绑定申报表单模板', trigger: 'change' }],
   batch_apply_start: [{ required: true, message: '请选择申报开始时间', trigger: 'change' }],
   batch_apply_deadline: [
     { required: true, message: '请选择申报截止时间', trigger: 'change' },
     { validator: validateApplyDeadline, trigger: 'change' },
   ],
+  batch_guide_file: [{ required: true, message: '请上传立项指南附件', trigger: 'change' }],
+  target_groups: [{ required: true, type: 'array', min: 1, message: '请选择目标群体', trigger: 'change' }],
+  declaration_limit: [{ required: true, message: '请选择是否限制申报项目', trigger: 'change' }],
 }))
 
 const workbenchShortcutPages = computed(() => {
@@ -1604,7 +2476,12 @@ const activeInitiationBatch = computed(() => {
 })
 
 const activeApprovalRoleInitiationBatch = computed(() => {
-  if (!isApprovalRoleApplicationLanding.value || approvalRoleInitiationView.value !== 'self') {
+  const view = approvalRoleInitiationView.value
+  const viewAllowsBatch =
+    view === 'projectApproval' ||
+    (view === 'self' && currentRoleKey.value !== 'facultyLeader')
+
+  if (!isApprovalRoleApplicationLanding.value || !viewAllowsBatch) {
     return null
   }
 
@@ -1617,14 +2494,16 @@ const activeApprovalRoleInitiationBatch = computed(() => {
   return initiationBatchMockRows.find((batch) => batch.id === batchId) ?? null
 })
 
-const approvalRoleViewOptions = computed(() => [
+
+const facultyEntryCards = computed(() => [
   {
-    key: 'self' as const,
-    label: currentRole.value?.name ?? '当前角色',
-  },
-  {
-    key: 'projectMember' as const,
-    label: '项目负责人',
+    key: 'projectApproval' as const,
+    title: '项目审批',
+    desc: '按批次查看需要当前角色审批的申报项目；指定子方向与评委已并入批次初审阶段，点开批次即可处理',
+    iconText: '批',
+    hint: undefined as string | undefined,
+    accent: '#317fba',
+    soft: '#eaf5fc',
   },
 ])
 
@@ -1697,12 +2576,6 @@ const batchEmptyDescription = computed(() =>
   batchStatusView.value === 'active' ? '暂无正在申报中的立项批次' : '暂无匹配的历史立项批次',
 )
 
-const leaderBatchStatusOptions = [
-  { label: '未开始', value: '未开始' },
-  { label: '申报中', value: '申报中' },
-  { label: '已结束', value: '已结束' },
-]
-
 const leaderProjectCategoryOptions = computed(() =>
   Array.from(
     new Set(
@@ -1716,6 +2589,7 @@ const leaderProjectCategoryOptions = computed(() =>
 const filteredLeaderInitiationBatches = computed(() => {
   const keyword = appliedLeaderBatchFilter.keyword.trim().toLowerCase()
 
+  // 原型约定：项目负责人（申请人）视角不再区分「正在进行中 / 已结束」，批次平铺展示（AN-MWUAU6TC）
   return [...initiationBatchMockRows]
     .filter((batch) => {
       const batchName = getBatchDisplayName(batch).toLowerCase()
@@ -1725,13 +2599,26 @@ const filteredLeaderInitiationBatches = computed(() => {
       const matchedCategory =
         appliedLeaderBatchFilter.projectCategory === 'all' ||
         (batch.project_category ?? '') === appliedLeaderBatchFilter.projectCategory
-      const matchedStatus =
-        appliedLeaderBatchFilter.status === 'all' ||
-        getLeaderBatchTimeStatus(batch) === appliedLeaderBatchFilter.status
 
-      return matchedKeyword && matchedYear && matchedCategory && matchedStatus
+      return matchedKeyword && matchedYear && matchedCategory
     })
     .sort((a, b) => b.year - a.year || b.quarter - a.quarter)
+})
+
+// 负责人视角批次列表：申报中的批次优先展示（点开「项目申报与立项」即可见正在申请中的批次），其余按年/季降序排在后面
+const projectMemberInitiationBatches = computed(() =>
+  [...filteredLeaderInitiationBatches.value].sort(
+    (a, b) =>
+      (a.status === '申报中' ? 0 : 1) - (b.status === '申报中' ? 0 : 1) ||
+      b.year - a.year ||
+      b.quarter - a.quarter,
+  ),
+)
+
+const pagedProjectMemberInitiationBatches = computed(() => {
+  const start = (leaderBatchPage.value - 1) * leaderBatchPageSize.value
+
+  return projectMemberInitiationBatches.value.slice(start, start + leaderBatchPageSize.value)
 })
 
 const pagedLeaderInitiationBatches = computed(() => {
@@ -1739,6 +2626,21 @@ const pagedLeaderInitiationBatches = computed(() => {
 
   return filteredLeaderInitiationBatches.value.slice(start, start + leaderBatchPageSize.value)
 })
+
+// 负责人已提交申报的批次（「我的申请」入口的数据依据：本人项目行 batchId 集合）
+const projectMemberAppliedProjects = computed(() =>
+  getProjectMemberProjects(currentUser.value).filter((project) => !!project.batchId),
+)
+
+function hasProjectMemberApplied(batchId: string) {
+  return projectMemberAppliedProjects.value.some((project) => project.batchId === batchId)
+}
+
+function getProjectMemberAppliedProjectLabel(batchId: string) {
+  const project = projectMemberAppliedProjects.value.find((row) => row.batchId === batchId)
+
+  return project ? project.projectName ?? '' : ''
+}
 
 const activeLeaderInitiationBatch = computed(() => {
   const batchId = route.params.batchId
@@ -1749,6 +2651,14 @@ const activeLeaderInitiationBatch = computed(() => {
 
   return initiationBatchMockRows.find((batch) => batch.id === batchId) ?? null
 })
+
+// 原型约定：项目负责人（申请人）视角下，批次统一按「申报中」展示（AN-MWUAUVPS / AN-MWUAWSX8 / AN-MWUAX24P）
+const projectMemberBatchDisplayStatus: LeaderBatchTimeStatus = '申报中'
+
+/** 已结束的批次不再显示「剩余 N 天」角标，其余沿用真实剩余时间文案 */
+function getProjectMemberBatchRemainingText(batch: InitiationBatchMockRow) {
+  return getLeaderBatchTimeStatus(batch) === '已结束' ? '' : getLeaderBatchRemainingText(batch)
+}
 
 const activeInitiationProject = computed(() => {
   const projectId = route.params.projectId
@@ -1787,18 +2697,7 @@ const activeInitiationProjectBatch = computed(() => {
   return activeInitiationProject.value ? getInitiationBatchByProject(activeInitiationProject.value) : null
 })
 
-const activeLeaderBatchStatus = computed<LeaderBatchTimeStatus>(() =>
-  activeLeaderInitiationBatch.value ? getLeaderBatchTimeStatus(activeLeaderInitiationBatch.value) : '已结束',
-)
-
-const activeLeaderBatchRemainingText = computed(() =>
-  activeLeaderInitiationBatch.value ? getLeaderBatchRemainingText(activeLeaderInitiationBatch.value) : '',
-)
-
-// 原型演示模式：无论批次状态（未开始/申报中/已结束）都保留“立即申报”入口
-const canSubmitLeaderInitiation = computed(() => true)
-
-const leaderInitiationSubmitDisabledReason = computed(() => '')
+// 原型约定：项目负责人（申请人）的批次详情统一展示「申报中」，申报入口保持开放
 
 const isProjectApplicationSubmitted = computed(() => projectApplicationForm.status === 'SUBMITTED')
 
@@ -1940,6 +2839,18 @@ const isReviewDataMaintenanceFeature = computed(() =>
 
 const isQuarterlyReviewMeetingFeature = computed(() => currentFeatureKey.value === 'quarterly-review-meeting')
 
+const isOfficeApprovalFeature = computed(
+  () => currentRoleKey.value === 'researchDepartmentLeader' && currentFeatureKey.value === 'office-project-approval',
+)
+
+const isReviewerProjectReviewFeature = computed(
+  () => currentRoleKey.value === 'reviewer' && currentFeatureKey.value === 'project-review',
+)
+
+const isReviewerProjectReviewDetailFeature = computed(
+  () => currentRoleKey.value === 'reviewer' && currentFeatureKey.value === 'reviewer-project-review-detail',
+)
+
 const isKyownerProjectReviewFeature = computed(
   () => currentRoleKey.value === 'researchDepartmentLeader' && currentFeatureKey.value === 'review-projects',
 )
@@ -1984,6 +2895,14 @@ const isProjectMemberMyProjectsFeature = computed(
 
 const isProjectMemberMyProjectDetailFeature = computed(
   () => currentRoleKey.value === 'projectMember' && currentFeatureKey.value === 'my-project-detail',
+)
+
+const isProjectApplicationProjectsFeature = computed(
+  () => currentRoleKey.value === 'projectMember' && currentFeatureKey.value === 'application-projects',
+)
+
+const isProjectApplicationProjectDetailFeature = computed(
+  () => currentRoleKey.value === 'projectMember' && currentFeatureKey.value === 'application-project-detail',
 )
 
 const isAdminProjectRecruitmentOverviewFeature = computed(
@@ -2343,15 +3262,21 @@ function resetLaunchInitiationForm() {
 
   closeLaunchGuidePreview()
   Object.assign(launchForm, {
-    batch_name: seed.name,
+    owner_organizations: ['北京中关村学院'],
+    project_category: '基础培育类',
     batch_code: seed.code,
-    project_category: '纵向',
+    batch_name: seed.name,
+    funding_source: '院拨经费',
+    budget_mode: '标准预算模板',
+    workflow_template: '立项审批流（默认）',
+    form_template: '基础培育类申报表单',
     batch_introduction: '',
     batch_apply_start: seed.applyStart,
     batch_apply_deadline: seed.applyDeadline,
-    batch_limit_count: 0,
     batch_guide_file: '',
-    remark: '',
+    target_groups: ['北京中关村学院'],
+    launch_owner: currentUser.value?.displayName ?? '张晓明',
+    declaration_limit: '否',
   })
   launchGuideFile.value = null
   launchGuideUploadRef.value?.clearFiles()
@@ -2370,6 +3295,21 @@ function generateLaunchBatchCode() {
   launchFormRef.value?.clearValidate('batch_code')
 }
 
+function handleConfigureBudgetTemplate() {
+  // TODO: 接入预算模板配置界面后，跳转或打开对应的配置弹窗。
+  ElMessage.info(`原型演示：配置「${launchForm.budget_mode}」预算模板，申请人将按该模板填报预算`)
+}
+
+function handleConfigureWorkflowTemplate() {
+  // TODO: 接入流程模板配置界面后，跳转或打开对应的配置弹窗。
+  ElMessage.info(`原型演示：配置「${launchForm.workflow_template || '流程'}」流程模板，该批次申报将按此流程审批`)
+}
+
+function handleConfigureFormTemplate() {
+  // TODO: 接入表单模板配置界面后，跳转或打开对应的配置弹窗。
+  ElMessage.info(`原型演示：配置「${launchForm.form_template || '申报表单'}」表单模板，申请人将按该表单填报`)
+}
+
 function revokeLaunchGuidePreviewUrl() {
   if (launchGuidePreviewUrl.value.startsWith('blob:')) {
     URL.revokeObjectURL(launchGuidePreviewUrl.value)
@@ -2384,16 +3324,23 @@ function closeLaunchGuidePreview() {
 }
 
 function validateGuideUploadFile(file: UploadRawFile) {
-  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
-  const isLt20M = file.size / 1024 / 1024 <= 20
+  const lowerName = file.name.toLowerCase()
+  const isAllowedType =
+    file.type === 'application/pdf' ||
+    file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+    file.type === 'application/msword' ||
+    lowerName.endsWith('.pdf') ||
+    lowerName.endsWith('.docx') ||
+    lowerName.endsWith('.doc')
+  const isLt100M = file.size / 1024 / 1024 <= 100
 
-  if (!isPdf) {
-    ElMessage.error('立项指南仅支持上传 PDF 文件')
+  if (!isAllowedType) {
+    ElMessage.error('立项指南仅支持上传 PDF 或 DOCX 文件')
     return false
   }
 
-  if (!isLt20M) {
-    ElMessage.error('立项指南文件不能超过 20MB')
+  if (!isLt100M) {
+    ElMessage.error('立项指南文件不能超过 100MB')
     return false
   }
 
@@ -2465,11 +3412,24 @@ async function handleConfirmLaunch() {
 
   try {
     await launchFormRef.value.validate()
+    // PMO 修改后重新发起，管理办的驳回反馈随之清零
+    resetOfficeLaunchFeedback()
     // TODO: 接入真实创建并发布接口后，在这里提交 launchForm 与 batch_guide_file。
-    ElMessage.success('立项批次已创建并发布')
+    ElMessage.success('发起立项成功，待管理办负责人审批后生效')
     returnToInitiationBatchList()
-  } catch {
-    ElMessage.error('请先完善必填项，并确认截止时间晚于开始时间')
+  } catch (invalidFields) {
+    // validate() reject 时带回 { 字段: 规则[] }，用真实失败原因替代固定文案
+    const fields = (invalidFields || {}) as Record<string, { message?: string }[]>
+    const messages = Object.values(fields)
+      .flat()
+      .map(rule => rule?.message)
+      .filter((m): m is string => Boolean(m))
+    const unique = [...new Set(messages)]
+    ElMessage.error(
+      unique.length
+        ? `请完善以下内容：${unique.slice(0, 3).join('；')}${unique.length > 3 ? ` 等 ${unique.length} 项` : ''}`
+        : '请先完善必填项',
+    )
   }
 }
 
@@ -2558,12 +3518,7 @@ function getBatchProgressValue(batch: InitiationBatchMockRow) {
   return Math.min(100, Math.max(0, batch.progress))
 }
 
-function openInitiationBatchProjectList(batch: InitiationBatchMockRow) {
-  initiationSelectedYear.value = batch.year
-  initiationSelectedQuarter.value = batch.quarter
-  initiationPage.value = 1
-  activeInitiationNodeFilter.value = ''
-
+function openDeclarationReviewBatch(batch: InitiationBatchMockRow) {
   const nextQuery = { ...route.query }
   delete nextQuery.initiationAction
 
@@ -2571,6 +3526,7 @@ function openInitiationBatchProjectList(batch: InitiationBatchMockRow) {
     path: route.path,
     query: {
       ...nextQuery,
+      applicationView: 'declaration-review',
       batchId: batch.id,
     },
   })
@@ -2609,6 +3565,12 @@ function setApprovalRoleInitiationView(view: ApprovalRoleInitiationView) {
     return
   }
 
+  if (view === 'projectApproval' && !isDashboardFeature.value) {
+    selectedPrimaryMenuKey.value = 'application'
+    router.push(currentRole.value?.dashboardPath ?? '/login')
+    return
+  }
+
   if (
     isDashboardFeature.value &&
     (route.query.batchId || route.query.initiationAction || route.query.applicationView === 'project-application')
@@ -2625,7 +3587,10 @@ function openApprovalRoleInitiationBatchDetail(batch: InitiationBatchMockRow) {
     return
   }
 
-  approvalRoleInitiationView.value = 'self'
+  approvalRoleInitiationView.value =
+    currentRoleKey.value === 'facultyLeader' ? 'projectApproval' : 'self'
+  approvalRoleBatchStage.value = currentRoleKey.value === 'facultyLeader' ? 'formal' : ''
+  approvalRoleFinalSubStep.value = 'assign'
   approvalRoleProjectPage.value = 1
   selectedPrimaryMenuKey.value = 'application'
 
@@ -2892,6 +3857,17 @@ const activeInitiationProjectProcessSteps = computed(() =>
 
 function getInitiationProjectStepClass(step: InitiationProjectProcessStep) {
   return ['initiation-project-step', `is-${step.state}`]
+}
+
+/** 原型要求：形式审查页流转线点击可跳转 PMO 立项管理对应环节（保留批次上下文） */
+function handleDeclarationFlowStep(index: number) {
+  adminInitiationFlowStage.value = adminInitiationFlowStageOrder[index] ?? 'guide'
+
+  const nextQuery = { ...route.query }
+  nextQuery.applicationView = 'project-application'
+  delete nextQuery.batchId
+
+  router.push({ path: route.path, query: nextQuery })
 }
 
 function handleLaunchInitiation() {
@@ -3314,7 +4290,14 @@ function handleProjectMemberInitiationApply() {
     return
   }
 
-  // 原型演示模式：不校验批次时间状态，任何批次都可以进入申报填写
+  // 已在该批次提交申报：不再进入填写申报，直接跳转「我的申请」申报详情
+  const appliedProject = projectMemberAppliedProjects.value.find((project) => project.batchId === batch.id)
+
+  if (appliedProject) {
+    router.push(`/project-member/application-projects/${appliedProject.projectId}`)
+    return
+  }
+
   router.push({
     name: getRoleScopedRouteName('initiation-apply') ?? 'project-member-initiation-apply',
     params: {
@@ -3324,6 +4307,14 @@ function handleProjectMemberInitiationApply() {
 }
 
 function openInitiationProjectDetail(project: InitiationProjectMockRow) {
+  if (
+    currentRoleKey.value === 'facultyLeader' &&
+    approvalRoleInitiationView.value === 'projectApproval'
+  ) {
+    reviewReportVisible.value = true
+    return
+  }
+
   const batch = getInitiationBatchByProject(project)
   const shouldReturnToApprovalDashboard =
     isDashboardFeature.value &&
@@ -3483,19 +4474,100 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
       label: getPrimaryBreadcrumbLabel(primaryKey),
       to:
         !isDashboardFeature.value ||
-        (isResearchAdminApplicationLanding.value && (isInitiationLaunchPage.value || isAdminApplicationReviewPage.value))
+        (isResearchAdminApplicationLanding.value &&
+          (isInitiationLaunchPage.value ||
+            isAdminDeclarationReviewBatchPage.value ||
+            isAdminApplicationReviewPage.value))
           ? primaryPath
           : undefined,
     },
   ]
 
   if (isDashboardFeature.value) {
+    if (isResearchAdminApplicationLanding.value && adminInitiationFlowBatchCode.value) {
+      // AN-MWUF20S9：批次流转线面包屑——「立项管理」可点击返回批次列表（原 office-batch-context 内返回按钮上移至此）
+      items.push({
+        label: '立项管理',
+        action: backToAdminInitiationFlowPick,
+      })
+      items.push({
+        label:
+          adminInitiationFlowBatch.value?.batchName ??
+          adminInitiationFlowBatchCode.value,
+      })
+      // 面包屑统一（整盘）：批次详情第三级为批次名，第四级为当前流转阶段
+      items.push({
+        label: officeApprovalFlowSteps[adminInitiationFlowStageOrder.indexOf(adminInitiationFlowStage.value)],
+      })
+      return items
+    }
+
+    if (
+      currentRoleKey.value === 'researchDepartmentLeader' &&
+      isOfficeApprovalFeature.value &&
+      officeApprovalSelectedBatchCode.value
+    ) {
+      // 管理办负责人批次审批面包屑——「项目审批」可点击返回批次选择
+      items.push({
+        label: '项目审批',
+        action: backToOfficeBatchPick,
+      })
+      items.push({
+        label:
+          officeApprovalSelectedBatch.value?.batchName ??
+          officeApprovalSelectedBatchCode.value,
+      })
+      return items
+    }
+
     if (isResearchAdminApplicationLanding.value && isInitiationLaunchPage.value) {
       items.push({ label: '发起立项' })
     }
 
+    if (isResearchAdminApplicationLanding.value && isAdminDeclarationReviewBatchPage.value) {
+      items.push({ label: '形式审查' })
+    }
+
     if (isResearchAdminApplicationLanding.value && isAdminApplicationReviewPage.value) {
+      items.push({
+        label: '形式审查',
+        to: `${currentRole.value?.dashboardPath ?? '/research-project-admin/dashboard'}?applicationView=declaration-review`,
+      })
       items.push({ label: '申报审查' })
+    }
+
+    if (isApprovalRoleApplicationLanding.value) {
+      if (
+        currentRoleKey.value === 'facultyLeader' &&
+        approvalRoleInitiationView.value === 'projectApproval'
+      ) {
+        items.push({
+          label: '项目审批',
+          to: undefined,
+          action: activeApprovalRoleInitiationBatch.value
+            ? backToFacultyBatchPick
+            : undefined,
+        })
+
+        if (
+          approvalRoleInitiationView.value === 'projectApproval' &&
+          activeApprovalRoleInitiationBatch.value
+        ) {
+          // 面包屑统一（整盘）：批次详情第三级为批次名，第四级为当前流转阶段（子步骤见页内导航）
+          items.push({
+            label:
+              activeApprovalRoleInitiationBatch.value.batchName ??
+              '批次详情',
+          })
+          items.push({
+            label: officeApprovalFlowSteps[
+              ['guide', 'formal', 'final', 'recheck', 'archive'].indexOf(
+                approvalRoleBatchStage.value || 'guide',
+              )
+            ],
+          })
+        }
+      }
     }
 
     return items
@@ -3506,13 +4578,24 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
   }
 
   if (isProjectMemberInitiationBatchDetailFeature.value) {
+    // 面包屑统一（整盘）：批次详情——一级返回批次列表，第三级批次名
+    if (items[0]) {
+      items[0] = { ...items[0], to: getRoleScopedPath('initiation-batches') }
+    }
+    items.push({
+      label: activeLeaderInitiationBatch.value?.batchName ?? '当前批次',
+    })
     items.push({ label: '批次详情' })
     return items
   }
 
   if (isProjectMemberInitiationApplyFeature.value) {
+    // 面包屑统一（整盘）：填写申报——[一级(→批次列表) / 批次名(→批次详情) / 填写申报]
+    if (items[0]) {
+      items[0] = { ...items[0], to: getRoleScopedPath('initiation-batches') }
+    }
     items.push({
-      label: '批次详情',
+      label: activeLeaderInitiationBatch.value?.batchName ?? '当前批次',
       to: activeLeaderInitiationBatch.value
         ? `${getRoleScopedPath('initiation-batches')}/${activeLeaderInitiationBatch.value.id}`
         : getRoleScopedPath('initiation-batches'),
@@ -3640,6 +4723,23 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
     return items
   }
 
+  if (isOfficeApprovalFeature.value) {
+    // 面包屑统一（整盘）：管理办项目审批——批次选择态只到「项目审批」；进入批次后为 [项目审批(可点返回) / 批次名 / 当前阶段]
+    if (officeApprovalSelectedBatchCode.value) {
+      items.push({
+        label: '项目审批',
+        action: backToOfficeBatchPick,
+      })
+      items.push({
+        label: officeApprovalSelectedBatch.value?.batchName ?? officeApprovalSelectedBatchCode.value,
+      })
+      items.push({ label: officeApprovalStageMeta[officeActiveStage.value].title })
+      return items
+    }
+    items.push({ label: '项目审批' })
+    return items
+  }
+
   if (isFinanceFeature.value) {
     items.push({
       label:
@@ -3719,6 +4819,12 @@ function openPrimaryMenu(item: PrimaryMenuItem) {
 
   if (item.key === 'quarterly') {
     router.push(`${currentRole.value?.basePath ?? ''}/quarterly-review-meeting`)
+    return
+  }
+
+  // 项目负责人：「项目申报与立项」直达批次列表（原「立项申请 / 我的项目」两入口合并，申报进度在批次列表/详情内直接查看）
+  if (item.key === 'application' && currentRoleKey.value === 'projectMember') {
+    router.push(`${currentRole.value?.basePath ?? ''}/initiation-batches`)
     return
   }
 
@@ -3889,7 +4995,69 @@ function getAvatarLetter(name?: string) {
   return name?.trim().slice(0, 1) || '用'
 }
 
+/** 学部批次审批面包屑「项目审批」点击：返回批次列表（AN-MWUF20S9 与 PMO/管理办一致） */
+function backToFacultyBatchPick() {
+  approvalRoleBatchStage.value = ''
+  approvalRoleFinalSubStep.value = 'assign'
+  router.replace({
+    path: route.path,
+    query: clearDashboardInitiationQuery(),
+  })
+}
+
+/** 面包屑点击（AN-MWUF20S9）：带 action 的项（批次流转线「立项管理/项目审批」）点击仅重置组件内状态，不改 URL */
+function handleBreadcrumbClick(item: BreadcrumbItem) {
+  if (item.action) {
+    item.action()
+  }
+}
+
 function goBack() {
+  if (
+    currentRoleKey.value === 'facultyLeader' &&
+    isApprovalRoleApplicationLanding.value &&
+    approvalRoleInitiationView.value === 'projectApproval'
+  ) {
+    if (approvalRoleBatchStage.value) {
+      approvalRoleBatchStage.value = ''
+      approvalRoleFinalSubStep.value = 'assign'
+      return
+    }
+
+    if (activeApprovalRoleInitiationBatch.value) {
+      approvalRoleBatchStage.value = ''
+      approvalRoleFinalSubStep.value = 'assign'
+      router.replace({
+        path: route.path,
+        query: clearDashboardInitiationQuery(),
+      })
+      return
+    }
+
+    setApprovalRoleInitiationView('self')
+    return
+  }
+
+  // 面包屑统一（整盘）：PMO 批次流转线内圆返回 = 返回批次网格（与「立项管理」crumb 一致）
+  if (
+    currentRoleKey.value === 'researchProjectAdmin' &&
+    isResearchAdminApplicationLanding.value &&
+    adminInitiationFlowBatchCode.value
+  ) {
+    backToAdminInitiationFlowPick()
+    return
+  }
+
+  // 面包屑统一（整盘）：管理办批次审批内圆返回 = 返回批次选择（与「项目审批」crumb 一致）
+  if (
+    currentRoleKey.value === 'researchDepartmentLeader' &&
+    isOfficeApprovalFeature.value &&
+    officeApprovalSelectedBatchCode.value
+  ) {
+    backToOfficeBatchPick()
+    return
+  }
+
   router.push(breadcrumbBackTarget.value)
 }
 
@@ -4005,7 +5173,9 @@ function resolveLandingCardIcon(title: string) {
               <el-breadcrumb-item
                 v-for="(item, index) in breadcrumbItems"
                 :key="`${item.label}-${index}`"
-                :to="index < breadcrumbItems.length - 1 ? item.to : undefined"
+                :to="index < breadcrumbItems.length - 1 && item.to ? item.to : undefined"
+                :class="{ 'breadcrumb-action-item': !!item.action }"
+                @click="handleBreadcrumbClick(item)"
               >
                 {{ item.label }}
               </el-breadcrumb-item>
@@ -4017,12 +5187,12 @@ function resolveLandingCardIcon(title: string) {
           <div :key="`${currentRoleKey}-${currentFeatureKey}-${activePrimaryMenuKey}`" class="dashboard-body">
             <section v-if="showModuleLanding" class="module-landing" aria-label="功能入口">
               <template v-if="isResearchAdminWorkbench">
-                <section class="workbench-page" aria-label="科研项目管理员我的工作台">
+                <section class="workbench-page" aria-label="PMO我的工作台">
                   <section class="workbench-card workbench-shortcut-card" aria-label="常用功能">
                     <header class="workbench-card-head">
                       <span aria-hidden="true"></span>
-                      <el-button type="primary" link @click="handleWorkbenchAction('管理常用功能')">
-                        管理常用功能
+                      <el-button type="primary" link @click="handleWorkbenchAction('管理')">
+                        管理
                       </el-button>
                     </header>
 
@@ -4300,7 +5470,7 @@ function resolveLandingCardIcon(title: string) {
 
               <template v-else-if="isResearchAdminApplicationLanding">
                 <section
-                  v-if="!isAdminApplicationProjectPage && !isAdminApplicationReviewPage"
+                  v-if="!isAdminApplicationProjectPage && !isAdminApplicationReviewPage && !isAdminDeclarationReviewBatchPage"
                   class="module-entry-card-grid"
                   aria-label="项目申报与立项二级功能入口"
                 >
@@ -4323,7 +5493,7 @@ function resolveLandingCardIcon(title: string) {
                           <span v-else>{{ entry.iconText }}</span>
                         </span>
                       </span>
-                      <span class="card-title">{{ entry.title }}</span>
+                      <span class="card-title">{{ entry.title }}<span v-if="entry.hint" class="field-doc-hint" :title="entry.hint">ℹ</span></span>
                       <span class="enter">进入{{ entry.title }} <span aria-hidden="true">›</span></span>
                     </RouterLink>
 
@@ -4346,16 +5516,20 @@ function resolveLandingCardIcon(title: string) {
                           <span v-else>{{ entry.iconText }}</span>
                         </span>
                       </span>
-                      <span class="card-title">{{ entry.title }}</span>
+                      <span class="card-title">{{ entry.title }}<span v-if="entry.hint" class="field-doc-hint" :title="entry.hint">ℹ</span></span>
                       <span class="enter">进入{{ entry.title }} <span aria-hidden="true">›</span></span>
                     </button>
                   </section>
                 </section>
 
-                <InitiationDeclarationReview v-else-if="isAdminApplicationReviewPage" />
+                <InitiationDeclarationReview
+                  v-else-if="isAdminApplicationReviewPage"
+                  :initial-batch-id="activeInitiationBatch?.id"
+                  @flow-step="handleDeclarationFlowStep"
+                />
 
                 <section
-                  v-if="isAdminApplicationProjectPage && !activeInitiationBatch && !isInitiationLaunchPage"
+                  v-if="isAdminApplicationProjectPage && !activeInitiationBatch && !isInitiationLaunchPage && !adminInitiationFlowBatchCode"
                   class="module-hero admin-application-hero"
                 >
                   <div class="hero-copy">
@@ -4368,38 +5542,7 @@ function resolveLandingCardIcon(title: string) {
                   </div>
                 </section>
 
-                <section
-                  v-if="isAdminApplicationProjectPage && !activeInitiationBatch && !isInitiationLaunchPage"
-                  class="initiation-process-flow"
-                  aria-label="项目申报与立项流程步骤"
-                >
-                  <article>
-                    <strong>1</strong>
-                    <span>发布指南</span>
-                  </article>
-                  <article>
-                    <strong>2</strong>
-                    <span>发起立项</span>
-                  </article>
-                  <article>
-                    <strong>3</strong>
-                    <span>项目负责人申请项目</span>
-                  </article>
-                  <article>
-                    <strong>4</strong>
-                    <span>设置审批流</span>
-                  </article>
-                  <article>
-                    <strong>5</strong>
-                    <span>专家评审</span>
-                  </article>
-                  <article>
-                    <strong>6</strong>
-                    <span>项目立项</span>
-                  </article>
-                </section>
-
-                <template v-if="isAdminApplicationProjectPage && !activeInitiationBatch && !isInitiationLaunchPage">
+                <template v-if="(isAdminApplicationProjectPage || isAdminDeclarationReviewBatchPage) && !activeInitiationBatch && !isInitiationLaunchPage && !adminInitiationFlowBatchCode">
                   <section class="initiation-batch-filter-panel" aria-label="立项批次筛选">
                     <div class="batch-filter-row">
                       <div class="batch-filter-controls">
@@ -4501,14 +5644,26 @@ function resolveLandingCardIcon(title: string) {
                       </div>
 
                       <div class="batch-row-status">
-                        <span :class="getBatchStatusClass(batch)">{{ batch.status }}</span>
+                        <el-tag
+                          v-if="batch.flowStage && batch.status !== '已结束'"
+                          size="small"
+                          effect="plain"
+                          type="warning"
+                        >
+                          {{ getBatchFlowStageLabel(batch) }}
+                        </el-tag>
+                        <span v-else :class="getBatchStatusClass(batch)">{{ batch.status }}</span>
                       </div>
 
                       <footer class="batch-card-footer">
                         <el-button
                           class="batch-detail-button"
                           :type="batch.status === '申报中' ? 'primary' : 'default'"
-                          @click="openInitiationBatchProjectList(batch)"
+                          @click="
+                            isAdminDeclarationReviewBatchPage
+                              ? openDeclarationReviewBatch(batch)
+                              : enterAdminInitiationFlow(batch)
+                          "
                         >
                           查看详情
                           <span aria-hidden="true">›</span>
@@ -4538,15 +5693,443 @@ function resolveLandingCardIcon(title: string) {
                   </footer>
                 </template>
 
+                <template v-else-if="isAdminApplicationProjectPage && adminInitiationFlowBatchCode && !isInitiationLaunchPage && !activeInitiationBatch">
+                  <header class="office-batch-context">
+                    <div class="office-batch-context-main">
+                      <h2>{{ adminInitiationFlowBatch?.batchName }}</h2>
+                      <p>
+                        批次编号：{{ adminInitiationFlowBatch?.batchCode }} ·
+                        {{ adminInitiationFlowBatch?.project_category }} · 申报周期
+                        {{ adminInitiationFlowBatch?.applyPeriod }}
+                      </p>
+                    </div>
+                    <div class="admin-initiation-flow-actions">
+                      <el-button size="small" @click="handleAdminFlowWorkflowSettings">审批流设置</el-button>
+                      <el-tag v-if="adminInitiationFlowBatch?.flowStage" size="small" effect="plain" type="warning">
+                        {{ getBatchFlowStageLabel(adminInitiationFlowBatch) }}
+                      </el-tag>
+                      <el-tag
+                        :type="adminInitiationFlowBatch?.status === '申报中' ? 'success' : 'info'"
+                        effect="light"
+                      >
+                        {{ adminInitiationFlowBatch?.status }}
+                      </el-tag>
+                    </div>
+                  </header>
+
+                  <nav
+                    class="approval-flow-steps"
+                    aria-label="项目立项流转线"
+                    title="原型演示：流转线各环节均可点击查看对应界面"
+                  >
+                    <button
+                      v-for="(step, index) in officeApprovalFlowSteps"
+                      :key="step"
+                      type="button"
+                      class="approval-flow-step approval-flow-step--clickable"
+                      :class="{
+                        active: index === adminInitiationFlowStageIndex,
+                        done: index < adminInitiationFlowBatchStageIndex || (adminInitiationFlowBatchStageIndex === -1 && index < adminInitiationFlowStageIndex),
+                      }"
+                      @click="adminInitiationFlowStage = adminInitiationFlowStageOrder[index]"
+                    >
+                      <span class="approval-flow-index">{{ index + 1 }}</span>
+                      <span class="approval-flow-label">{{ step }}</span>
+                    </button>
+                  </nav>
+
+                  <template v-if="adminInitiationFlowStage === 'guide'">
+                    <section class="office-guide-form-wrap" aria-label="立项指南发布">
+                      <section class="launch-initiation-page" aria-label="立项指南发布">
+                        <header class="launch-page-titlebar">
+                          <div>
+                            <h1>立项指南发布</h1>
+                          </div>
+                          <span class="launch-status-pill">已发布</span>
+                        </header>
+
+                        <section class="launch-form-card">
+                          <section class="launch-form-section">
+                            <div class="launch-section-title">
+                              <span class="launch-section-index">01</span>
+                              <div>
+                                <h2>立项指南</h2>
+                                <p>展示指南发布批次的全部字段；指南已发布并同步至项目负责人端，如需调整请通过「发起立项」重新提交。</p>
+                              </div>
+                            </div>
+
+                            <el-descriptions class="admin-guide-field-grid" :column="2" border>
+                              <el-descriptions-item label="批次名称" :span="2">
+                                {{ adminInitiationFlowBatch?.batch_name ?? '—' }}
+                              </el-descriptions-item>
+                              <el-descriptions-item label="批次编号">
+                                {{ adminInitiationFlowBatch?.batch_code ?? '—' }}
+                              </el-descriptions-item>
+                              <el-descriptions-item label="项目类别">
+                                {{ adminInitiationFlowBatch?.project_category ?? '—' }}
+                              </el-descriptions-item>
+                              <el-descriptions-item label="申报开始时间">
+                                {{ adminInitiationFlowBatch?.batch_apply_start ?? '—' }}
+                              </el-descriptions-item>
+                              <el-descriptions-item label="申报截止时间">
+                                {{ adminInitiationFlowBatch?.batch_apply_deadline ?? '—' }}
+                              </el-descriptions-item>
+                              <el-descriptions-item label="立项名额">
+                                {{ adminInitiationFlowBatch?.batch_limit_count
+                                  ? `${adminInitiationFlowBatch?.batch_limit_count} 项`
+                                  : '不限' }}
+                              </el-descriptions-item>
+                              <el-descriptions-item label="批次状态">
+                                {{ adminInitiationFlowBatch?.status ?? '—' }}
+                              </el-descriptions-item>
+                              <el-descriptions-item label="批次介绍" :span="2">
+                                {{ adminInitiationFlowBatch?.batch_introduction ?? '—' }}
+                              </el-descriptions-item>
+                              <el-descriptions-item label="内部备注" :span="2">
+                                {{ adminInitiationFlowBatch?.remark ?? '—' }}
+                              </el-descriptions-item>
+                            </el-descriptions>
+
+                            <div class="launch-form-grid">
+                              <div class="launch-guide-file office-guide-file-view">
+                                <span class="launch-guide-file-icon">
+                                  <el-icon><Document /></el-icon>
+                                </span>
+                                <span class="launch-guide-file-name">
+                                  {{ adminInitiationFlowBatch?.batch_guide_file?.name ?? '立项指南.pdf' }}
+                                </span>
+                                <span class="office-guide-file-meta">
+                                  PMO 上传 · {{ adminInitiationFlowBatch?.batch_guide_file?.size ?? '—' }}
+                                </span>
+                                <el-button type="primary" link @click.stop="previewAdminFlowGuideFile">
+                                  预览
+                                </el-button>
+                              </div>
+                            </div>
+
+                            <div class="admin-initiation-guide-actions">
+                              <el-button @click="downloadAdminFlowGuideFile">下载指南文件</el-button>
+                            </div>
+                          </section>
+                        </section>
+                      </section>
+                    </section>
+                  </template>
+
+                  <template v-else-if="adminInitiationFlowStage === 'formal'">
+                    <section class="office-guide-form-wrap" aria-label="形式审查">
+                      <InitiationDeclarationReview
+                        hide-flow-strip
+                        :initial-batch-id="adminInitiationFlowBatch?.id"
+                      />
+                    </section>
+                  </template>
+
+                  <!-- AN-MWUG2PQ5：PMO 初审阶段展示三个学部各项目评审结果 -->
+                  <template v-else-if="adminInitiationFlowStage === 'final'">
+                    <section class="office-guide-form-wrap pmo-final-stage-wrap" aria-label="初审阶段">
+                      <header class="pmo-stage-head">
+                        <div>
+                          <h2>学部初审结果汇总</h2>
+                          <p>三个学部对本批次申报项目的初审评审结果（{{ adminInitiationFlowBatch?.batchName ?? '当前批次' }}）</p>
+                        </div>
+                        <div class="pmo-stage-head-tags">
+                          <el-tag type="info" effect="plain">申报 {{ pmoFinalDeclaredTotal }} 项</el-tag>
+                          <el-tag type="success" effect="plain">学部推荐 {{ pmoFinalRecommendedTotal }} 项</el-tag>
+                          <el-tag v-if="pmoRecheckExcludedTotal > 0" type="danger" effect="plain">复议剔除 {{ pmoRecheckExcludedTotal }} 项</el-tag>
+                          <el-button type="primary" size="small" title="初审阶段会有一个三大学部复议的工作：各学部提交推荐立项的项目后，由管理办组织线下复议会议剔除部分成果。剔除动作由 PMO 录入后各学部审批确认。" @click="openPmoRecheckDialog">登记学部复议结果</el-button>
+                        </div>
+                      </header>
+                      <el-tabs v-model="pmoFinalActiveAcademy" class="pmo-final-faculty-tabs">
+                        <el-tab-pane
+                          v-for="faculty in pmoFinalFacultySummaries"
+                          :key="faculty.academy"
+                          :name="faculty.academy"
+                        >
+                          <template #label>
+                            <span class="pmo-final-faculty-tab-label">
+                              {{ faculty.academy }}
+                              <span class="pmo-final-faculty-tab-count">{{ faculty.recommendedCount }}/{{ faculty.rows.length }}</span>
+                            </span>
+                          </template>
+                          <div class="pmo-final-faculty-meta">
+                            <span>申报 {{ faculty.declaredCount }} 项</span>
+                            <span>拟推荐复审 {{ faculty.recommendedCount }} 项</span>
+                            <span>平均分 {{ faculty.averageScore }}</span>
+                          </div>
+                          <el-table
+                            :data="faculty.rows"
+                            class="pmo-final-faculty-table"
+                            border
+                            size="small"
+                          >
+                            <el-table-column prop="seq" label="推荐次序" width="78" align="center" />
+                            <el-table-column prop="projectName" label="项目名称" min-width="210" show-overflow-tooltip />
+                            <el-table-column prop="leader" label="项目负责人" width="92" align="center" />
+                            <el-table-column prop="subDirection" label="所属子方向" width="110" align="center" />
+                            <el-table-column label="评分结果" width="128" align="center">
+                              <template #default="{ row }">
+                                <div class="pmo-final-score-cell">
+                                  <span class="pmo-final-score">{{ row.score }}</span>
+                                  <span class="pmo-final-zscore">Z {{ row.zScore }}</span>
+                                </div>
+                              </template>
+                            </el-table-column>
+                            <el-table-column label="战略相关标注" width="104" align="center">
+                              <template #default="{ row }">
+                                <el-tag
+                                  v-if="row.strategicStar"
+                                  type="warning"
+                                  size="small"
+                                  effect="light"
+                                >
+                                  ★ 战略相关
+                                </el-tag>
+                                <span v-else class="pmo-final-muted">——</span>
+                              </template>
+                            </el-table-column>
+                            <el-table-column prop="reviewComment" label="具体评审意见" min-width="220" show-overflow-tooltip />
+                            <el-table-column label="是否推荐复审" width="108" align="center">
+                              <template #default="{ row }">
+                                <el-tag :type="getFinalRecommendTag(row).type" size="small">
+                                  {{ getFinalRecommendTag(row).text }}
+                                </el-tag>
+                              </template>
+                            </el-table-column>
+                          </el-table>
+                        </el-tab-pane>
+                      </el-tabs>
+
+                      <el-dialog
+                        v-model="pmoRecheckDialogVisible"
+                        append-to-body
+                        destroy-on-close
+                        class="pmo-recheck-dialog"
+                        title="登记学部复议结果"
+                        width="560px"
+                      >
+                        <div class="pmo-recheck-dialog-tip">
+                          学部复议为线下合议会，会后由 PMO 在此登记结论：勾选合议决定从推荐名单中剔除的项目，其余项目进入复审。
+                        </div>
+                        <div class="pmo-recheck-register-list">
+                          <section
+                            v-for="group in pmoRecheckRegisterOptions"
+                            :key="group.academy"
+                            class="pmo-recheck-register-group"
+                          >
+                            <h4>{{ group.academy }}（推荐 {{ group.rows.length }} 项）</h4>
+                            <el-checkbox-group v-model="pmoRecheckExcludedKeys">
+                              <el-checkbox
+                                v-for="row in group.rows"
+                                :key="getPmoFinalRowKey(group.academy, row.projectName)"
+                                :value="getPmoFinalRowKey(group.academy, row.projectName)"
+                              >
+                                {{ row.projectName }}（{{ row.leader }} · {{ row.score }} 分）
+                              </el-checkbox>
+                            </el-checkbox-group>
+                          </section>
+                        </div>
+                        <el-input
+                          v-model="pmoRecheckDialogNote"
+                          type="textarea"
+                          :rows="2"
+                          placeholder="复议备注（可选）：合议会时间、地点、参会学部负责人等"
+                        />
+                        <template #footer>
+                          <el-button @click="pmoRecheckDialogVisible = false">取消</el-button>
+                          <el-button type="primary" @click="submitPmoRecheckRegistration">确认登记</el-button>
+                        </template>
+                      </el-dialog>
+                    </section>
+                  </template>
+
+                  <!-- AN-MWUG3BER：PMO 复审阶段基于初审通过项目指派复审评委并监控复审过程 -->
+                  <template v-else-if="adminInitiationFlowStage === 'recheck'">
+                    <section class="office-guide-form-wrap pmo-recheck-stage-wrap" aria-label="复审阶段">
+                      <header class="pmo-stage-head">
+                        <div>
+                          <h2>复审组织与过程监控</h2>
+                          <p>学部推荐 {{ pmoFinalRecommendedTotal }} 个项目，经学部复议剔除 {{ pmoRecheckExcludedTotal }} 个后，{{ pmoRecheckAdmittedTotal }} 个项目进入复审——在此指派复审评委并跟踪评分进度</p>
+                        </div>
+                        <div class="pmo-stage-head-tags">
+                          <el-tag type="success" effect="plain">已完成 {{ pmoRecheckMonitorDoneCount }}</el-tag>
+                          <el-tag type="warning" effect="plain">进行中 {{ pmoRecheckMonitorOngoingCount }}</el-tag>
+                          <el-tag type="info" effect="plain">待启动 {{ pmoRecheckMonitorPendingCount }}</el-tag>
+                        </div>
+                      </header>
+                      <nav class="recheck-sub-steps" aria-label="复审子步骤">
+                        <button
+                          type="button"
+                          class="recheck-sub-step"
+                          :class="{ active: pmoRecheckSubStep === 'assign' }"
+                          @click="pmoRecheckSubStep = 'assign'"
+                        >
+                          <span class="recheck-sub-index">1</span>
+                          <span class="recheck-sub-label">指派复审评委</span>
+                        </button>
+                        <button
+                          type="button"
+                          class="recheck-sub-step"
+                          :class="{ active: pmoRecheckSubStep === 'monitor' }"
+                          @click="pmoRecheckSubStep = 'monitor'"
+                        >
+                          <span class="recheck-sub-index">2</span>
+                          <span class="recheck-sub-label">复审过程监控</span>
+                        </button>
+                      </nav>
+                      <template v-if="pmoRecheckSubStep === 'assign'">
+                        <div class="pmo-recheck-intro">
+                          学部推荐 {{ pmoFinalRecommendedTotal }} 个项目，经学部复议剔除 {{ pmoRecheckExcludedTotal }} 个后，{{ pmoRecheckAdmittedTotal }} 个项目进入复审。请为项目指派复审评委（支持单项目指派与批量指派）。
+                        </div>
+                        <section class="subdirection-assign-page">
+                          <ReviewerAssignmentPanel panel-title="指定复审评委" />
+                        </section>
+                      </template>
+                      <template v-else>
+                        <el-table
+                          :data="pmoRecheckMonitorRows"
+                          class="pmo-recheck-monitor-table"
+                          border
+                          size="small"
+                        >
+                          <el-table-column prop="projectName" label="项目名称" min-width="210" show-overflow-tooltip />
+                          <el-table-column prop="academy" label="所属学部" width="150" show-overflow-tooltip />
+                          <el-table-column prop="leader" label="项目负责人" width="92" align="center" />
+                          <el-table-column prop="finalScore" label="初审得分" width="88" align="center" />
+                          <el-table-column label="复审评委" min-width="150">
+                            <template #default="{ row }">
+                              <div class="pmo-recheck-reviewer-tags">
+                                <el-tag
+                                  v-for="reviewer in row.recheckReviewers"
+                                  :key="reviewer"
+                                  size="small"
+                                  effect="plain"
+                                >
+                                  {{ reviewer }}
+                                </el-tag>
+                              </div>
+                            </template>
+                          </el-table-column>
+                          <el-table-column label="评分进度" width="150">
+                            <template #default="{ row }">
+                              <el-progress
+                                :percentage="Math.round((row.submittedCount / row.totalCount) * 100)"
+                                :status="row.submittedCount === row.totalCount ? 'success' : undefined"
+                              />
+                              <span class="pmo-recheck-progress-text">{{ row.submittedCount }}/{{ row.totalCount }} 已提交</span>
+                            </template>
+                          </el-table-column>
+                          <el-table-column label="状态" width="88" align="center">
+                            <template #default="{ row }">
+                              <el-tag :type="getRecheckMonitorStatusType(row.status)" size="small">
+                                {{ row.status }}
+                              </el-tag>
+                            </template>
+                          </el-table-column>
+                          <el-table-column prop="latestUpdate" label="最近更新" width="140" align="center" />
+                        </el-table>
+                      </template>
+                    </section>
+                  </template>
+
+                  <!-- AN-MWVINCCJ：PMO 立项入库阶段 — 补充复审入选项目清单 -->
+                  <template v-else-if="adminInitiationFlowStage === 'archive'">
+                    <section class="office-guide-form-wrap" aria-label="立项入库">
+                      <header class="pmo-stage-head">
+                        <div>
+                          <h2>复审入选项目清单</h2>
+                          <p>
+                            复审通过 {{ officeArchiveRows.length }} 个项目入选立项名单，管理办负责人审定通过后项目正式立项入库——在此跟踪审定与入库进度
+                          </p>
+                        </div>
+                        <div class="pmo-stage-head-tags">
+                          <el-tag type="success" effect="plain">复审通过 {{ officeArchiveRows.length }}</el-tag>
+                          <el-tag type="warning" effect="plain">待审定 {{ officeArchiveRows.length }}</el-tag>
+                        </div>
+                      </header>
+
+                      <section class="formal-report-section">
+                        <h3>复审入选项目清单 {{ officeArchiveRows.length }} 项・待管理办审定</h3>
+                        <el-table :data="officeArchiveRows" border size="small">
+                          <el-table-column type="index" label="序号" width="60" align="center" />
+                          <el-table-column label="项目名称" min-width="240">
+                            <template #default="{ row }">
+                              <el-button
+                                link
+                                type="primary"
+                                class="final-project-link"
+                                @click="openOfficeArchiveScoreDetail(row)"
+                              >
+                                {{ row.projectName }}
+                              </el-button>
+                            </template>
+                          </el-table-column>
+                          <el-table-column prop="leader" label="项目负责人" width="100" align="center" />
+                          <el-table-column prop="subDirection" label="所属子方向" width="150" show-overflow-tooltip />
+                          <el-table-column prop="score" label="评审得分" width="90" align="center" />
+                          <el-table-column label="战略相关" width="96" align="center">
+                            <template #default="{ row }">
+                              <span class="strategic-star" :class="{ 'is-active': row.strategic }">战略相关</span>
+                            </template>
+                          </el-table-column>
+                          <el-table-column prop="batchCode" label="所属批次" width="130" align="center" />
+                          <el-table-column label="入库状态" width="100" align="center" fixed="right">
+                            <template #default>
+                              <el-tag type="warning" effect="light">待审定</el-tag>
+                            </template>
+                          </el-table-column>
+                        </el-table>
+                      </section>
+
+                      <p class="formal-report-note">
+                        说明：清单为学部复审通过的项目；点击项目名称可查看评委打分明细。审定动作在管理办负责人「立项入库」环节完成。
+                      </p>
+                    </section>
+                  </template>
+
+                  <el-dialog
+                    v-model="leaderGuidePreviewVisible"
+                    append-to-body
+                    class="launch-guide-preview-dialog"
+                    destroy-on-close
+                    :title="leaderGuidePreviewTitle || '立项指南 PDF 预览'"
+                    width="72vw"
+                    top="6vh"
+                    @closed="revokeLeaderGuidePreviewUrl"
+                  >
+                    <div class="launch-guide-preview-body">
+                      <iframe
+                        v-if="leaderGuidePreviewUrl"
+                        class="launch-guide-preview-frame"
+                        :src="leaderGuidePreviewUrl"
+                        title="立项指南 PDF 预览"
+                      ></iframe>
+                      <el-empty v-else description="暂无可预览的指南文件" />
+                    </div>
+
+                    <template #footer>
+                      <el-button @click="closeLeaderGuidePreview">关闭</el-button>
+                    </template>
+                  </el-dialog>
+
+                  <!-- AN-MWVINCCJ：PMO 流转线共用的项目评审详情弹窗（复审入选清单项目名点击） -->
+                  <FinalScoreDetailDialog v-model="finalScoreDetailVisible" :target="finalScoreDetailTarget" />
+                </template>
+
                 <template v-else-if="isAdminApplicationProjectPage && isInitiationLaunchPage">
                   <section class="launch-initiation-page" aria-label="发起立项表单">
                     <header class="launch-page-titlebar">
                       <div>
                         <h1>发起立项</h1>
-                        <p>创建新的科研项目立项批次，并设置申报规则与指南材料。</p>
                       </div>
                       <span class="launch-status-pill">未发布</span>
                     </header>
+
+                    <div v-if="officeLaunchFeedback.rejected" class="launch-reject-banner" role="alert">
+                      <strong>管理办负责人已驳回本次立项发起</strong>
+                      <span>驳回理由：{{ officeLaunchFeedback.reason }}（{{ officeLaunchFeedback.at }}）</span>
+                      <em>请按驳回理由修改后，重新点击「确认发起」</em>
+                    </div>
 
                     <el-form
                       ref="launchFormRef"
@@ -4561,41 +6144,37 @@ function resolveLandingCardIcon(title: string) {
                           <span class="launch-section-index">01</span>
                           <div>
                             <h2>批次基本信息</h2>
-                            <p>用于识别和约束本次项目申报批次</p>
                           </div>
                         </div>
 
                         <div class="launch-form-grid">
-                          <el-form-item label="批次名称" prop="batch_name">
-                            <el-input
-                              v-model.trim="launchForm.batch_name"
-                              maxlength="80"
-                              placeholder="请输入批次名称"
-                            />
-                            <template #error="{ error }">
-                              <span class="launch-form-error">{{ error }}</span>
-                            </template>
-                            <p class="launch-field-tip">用于业务识别，例如“2026 年第 3 季度科研项目立项批次”</p>
-                          </el-form-item>
-
-                          <el-form-item label="批次编码" prop="batch_code">
-                            <el-input
-                              v-model.trim="launchForm.batch_code"
-                              maxlength="40"
-                              placeholder="请输入唯一批次编码"
+                          <el-form-item label="项目归属组织" prop="owner_organizations">
+                            <el-select
+                              v-model="launchForm.owner_organizations"
+                              multiple
+                              collapse-tags
+                              collapse-tags-tooltip
+                              placeholder="请按组织架构选择归属组织"
                             >
-                              <template #append>
-                                <el-button @click="generateLaunchBatchCode">系统生成</el-button>
-                              </template>
-                            </el-input>
+                              <el-option
+                                v-for="org in launchOwnerOrganizationOptions"
+                                :key="org"
+                                :label="org"
+                                :value="org"
+                              />
+                            </el-select>
                             <template #error="{ error }">
                               <span class="launch-form-error">{{ error }}</span>
                             </template>
-                            <p class="launch-field-tip">批次唯一编号，系统生成后仍可手动修改</p>
                           </el-form-item>
 
-                          <el-form-item label="项目类别" prop="project_category">
-                            <el-select v-model="launchForm.project_category" placeholder="请选择项目类别">
+                          <el-form-item prop="project_category">
+                            <template #label>
+                              <span class="field-doc-label">科研项目类别
+                                <span class="field-doc-hint" title="不同科研类别对应不同的审批流程、申请表单和预算形式">ℹ</span>
+                              </span>
+                            </template>
+                            <el-select v-model="launchForm.project_category" placeholder="请选择科研项目类别">
                               <el-option
                                 v-for="category in launchProjectCategoryOptions"
                                 :key="category"
@@ -4606,30 +6185,172 @@ function resolveLandingCardIcon(title: string) {
                             <template #error="{ error }">
                               <span class="launch-form-error">{{ error }}</span>
                             </template>
-                            <p class="launch-field-tip">限定本批次可申报的项目类型：纵向、横向或校内</p>
                           </el-form-item>
 
-                          <el-form-item label="项目数量上限" prop="batch_limit_count">
-                            <el-input-number
-                              v-model="launchForm.batch_limit_count"
-                              class="launch-input-number"
-                              :min="0"
-                              controls-position="right"
+                          <el-form-item label="批次编码" prop="batch_code">
+                            <el-input
+                              v-model.trim="launchForm.batch_code"
+                              maxlength="40"
+                              disabled
+                              placeholder="系统自动生成，全局唯一"
                             />
-                            <p class="launch-field-tip">0 代表不限制本批次项目数量</p>
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
+                          </el-form-item>
+
+                          <el-form-item label="批次名称" prop="batch_name">
+                            <el-input
+                              v-model.trim="launchForm.batch_name"
+                              maxlength="50"
+                              show-word-limit
+                              placeholder="请输入批次名称（≤50字）"
+                            />
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
+                          </el-form-item>
+
+                          <el-form-item label="项目经费来源" prop="funding_source">
+                            <el-select v-model="launchForm.funding_source" placeholder="请选择项目经费来源">
+                              <el-option
+                                v-for="source in launchFundingSourceOptions"
+                                :key="source"
+                                :label="source"
+                                :value="source"
+                              />
+                            </el-select>
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
+                          </el-form-item>
+
+                          <el-form-item label="项目预算方式" prop="budget_mode">
+                            <div class="launch-budget-mode-field">
+                              <el-select v-model="launchForm.budget_mode" placeholder="请选择项目预算方式">
+                                <el-option
+                                  v-for="mode in launchBudgetModeOptions"
+                                  :key="mode"
+                                  :label="mode"
+                                  :value="mode"
+                                />
+                              </el-select>
+                              <el-tooltip content="自定义配置预算模板，申请人按该批次指定模板填报" placement="top">
+                                <el-button class="launch-budget-config-btn" @click="handleConfigureBudgetTemplate">
+                                  配置模板
+                                </el-button>
+                              </el-tooltip>
+                            </div>
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
+                          </el-form-item>
+
+                          <el-form-item label="绑定流程模板" prop="workflow_template">
+                            <div class="launch-budget-mode-field">
+                              <el-select v-model="launchForm.workflow_template" placeholder="请选择已发布的流程模板">
+                                <el-option
+                                  v-for="tpl in launchWorkflowTemplateOptions"
+                                  :key="tpl"
+                                  :label="tpl"
+                                  :value="tpl"
+                                />
+                              </el-select>
+                              <el-tooltip content="自定义配置流程模板，该批次申报按此流程走审批" placement="top">
+                                <el-button class="launch-budget-config-btn" @click="handleConfigureWorkflowTemplate">
+                                  配置模板
+                                </el-button>
+                              </el-tooltip>
+                            </div>
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
+                          </el-form-item>
+
+                          <el-form-item label="绑定申报表单模板" prop="form_template">
+                            <div class="launch-budget-mode-field">
+                              <el-select v-model="launchForm.form_template" placeholder="请选择已发布的表单模板">
+                                <el-option
+                                  v-for="tpl in launchFormTemplateOptions"
+                                  :key="tpl"
+                                  :label="tpl"
+                                  :value="tpl"
+                                />
+                              </el-select>
+                              <el-tooltip content="自定义配置申报表单，申请人按该批次指定表单填报" placement="top">
+                                <el-button class="launch-budget-config-btn" @click="handleConfigureFormTemplate">
+                                  配置表单
+                                </el-button>
+                              </el-tooltip>
+                            </div>
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
+                          </el-form-item>
+
+                          <el-form-item label="申报项目限制" prop="declaration_limit">
+                            <el-select v-model="launchForm.declaration_limit" placeholder="请选择是否限制申报项目">
+                              <el-option
+                                v-for="option in launchDeclarationLimitOptions"
+                                :key="option"
+                                :label="option"
+                                :value="option"
+                              />
+                            </el-select>
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
+                          </el-form-item>
+
+                          <el-form-item label="发起人" prop="launch_owner">
+                            <el-input v-model="launchForm.launch_owner" disabled placeholder="当前操作人（PMO）" />
                           </el-form-item>
                         </div>
 
-                        <el-form-item class="launch-full-form-item" label="项目批次介绍" prop="batch_introduction">
-                          <el-input
-                            v-model="launchForm.batch_introduction"
-                            type="textarea"
-                            maxlength="500"
-                            show-word-limit
-                            :rows="4"
-                            placeholder="请输入本批次面向项目负责人的申报说明、重点方向或注意事项"
-                          />
-                          <p class="launch-field-tip">该介绍会展示在项目负责人端的批次详情页面</p>
+                        <el-form-item
+                          class="launch-full-form-item"
+                          label="项目批次说明"
+                          prop="batch_introduction"
+                        >
+                          <div class="launch-richtext-shell">
+                            <div class="launch-richtext-toolbar" role="toolbar" aria-label="富文本工具栏">
+                              <span class="launch-richtext-group">
+                                <button type="button" class="launch-richtext-btn" title="加粗"><strong>B</strong></button>
+                                <button type="button" class="launch-richtext-btn" title="斜体"><em>I</em></button>
+                                <button type="button" class="launch-richtext-btn" title="下划线"><u>U</u></button>
+                                <button type="button" class="launch-richtext-btn" title="删除线"><s>S</s></button>
+                              </span>
+                              <span class="launch-richtext-sep"></span>
+                              <span class="launch-richtext-group">
+                                <button type="button" class="launch-richtext-btn" title="无序列表">• 列表</button>
+                                <button type="button" class="launch-richtext-btn" title="有序列表">1. 列表</button>
+                              </span>
+                              <span class="launch-richtext-sep"></span>
+                              <span class="launch-richtext-group">
+                                <button type="button" class="launch-richtext-btn" title="左对齐">⯇</button>
+                                <button type="button" class="launch-richtext-btn" title="居中">≡</button>
+                                <button type="button" class="launch-richtext-btn" title="右对齐">⯈</button>
+                              </span>
+                              <span class="launch-richtext-sep"></span>
+                              <span class="launch-richtext-group">
+                                <button type="button" class="launch-richtext-btn" title="插入链接">🔗</button>
+                                <button type="button" class="launch-richtext-btn" title="插入表格">⊞</button>
+                                <button type="button" class="launch-richtext-btn" title="插入图片">🖼</button>
+                              </span>
+                              <span class="launch-richtext-sep"></span>
+                              <span class="launch-richtext-group">
+                                <button type="button" class="launch-richtext-btn" title="字体颜色">A</button>
+                                <button type="button" class="launch-richtext-btn" title="撤销">↶</button>
+                                <button type="button" class="launch-richtext-btn" title="重做">↷</button>
+                              </span>
+                              <span class="launch-richtext-count">2000 字以内</span>
+                            </div>
+                            <div
+                              class="launch-richtext-editor"
+                              contenteditable="true"
+                              data-placeholder="请输入本批次的申报说明、重点方向或注意事项"
+                            ></div>
+                          </div>
                         </el-form-item>
                       </section>
 
@@ -4640,12 +6361,11 @@ function resolveLandingCardIcon(title: string) {
                           <span class="launch-section-index success">02</span>
                           <div>
                             <h2>申报时间</h2>
-                            <p>设置该批次开放受理和自动截止的时间范围</p>
                           </div>
                         </div>
 
                         <div class="launch-form-grid">
-                          <el-form-item label="批次申报开始时间" prop="batch_apply_start">
+                          <el-form-item class="launch-inline-form-item" label="申报开始时间" prop="batch_apply_start">
                             <el-date-picker
                               v-model="launchForm.batch_apply_start"
                               class="launch-date-picker"
@@ -4657,14 +6377,12 @@ function resolveLandingCardIcon(title: string) {
                             <template #error="{ error }">
                               <span class="launch-form-error">{{ error }}</span>
                             </template>
-                            <p class="launch-field-tip">到达开始时间后，项目负责人可以进入该批次提交申报材料</p>
                           </el-form-item>
 
-                          <el-form-item class="core-constraint-item" prop="batch_apply_deadline">
+                          <el-form-item class="launch-inline-form-item core-constraint-item" prop="batch_apply_deadline">
                             <template #label>
                               <span class="form-label-with-tag">
-                                <span>批次申报截止时间</span>
-                                <span class="core-constraint-badge">核心约束</span>
+                                <span>申报截止时间</span>
                               </span>
                             </template>
                             <el-date-picker
@@ -4678,12 +6396,11 @@ function resolveLandingCardIcon(title: string) {
                             <template #error="{ error }">
                               <span class="launch-form-error">{{ error }}</span>
                             </template>
-                            <p class="launch-field-tip deadline-tip">
-                              到期后系统自动关闭该批次申报入口，已提交项目不受影响
-                            </p>
                           </el-form-item>
                         </div>
                       </section>
+
+                    <LaunchPlanGantt />
 
                       <div class="launch-form-divider"></div>
 
@@ -4691,13 +6408,12 @@ function resolveLandingCardIcon(title: string) {
                         <div class="launch-section-title">
                           <span class="launch-section-index violet">03</span>
                           <div>
-                            <h2>指南与备注</h2>
-                            <p>上传批次指南，并补充仅管理员可见的内部说明</p>
+                            <h2>指南与目标群体</h2>
                           </div>
                         </div>
 
                         <div class="launch-form-grid">
-                          <el-form-item label="立项指南 PDF" prop="batch_guide_file">
+                          <el-form-item label="立项指南" prop="batch_guide_file">
                             <div class="launch-guide-upload-shell">
                               <el-upload
                                 ref="launchGuideUploadRef"
@@ -4706,15 +6422,15 @@ function resolveLandingCardIcon(title: string) {
                                 drag
                                 :auto-upload="false"
                                 :limit="1"
-                                accept=".pdf,application/pdf"
+                                accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                                 :show-file-list="false"
                                 :before-upload="beforeGuideUpload"
                                 :on-change="handleGuideFileChange"
                               >
                                 <el-icon class="launch-upload-icon"><Upload /></el-icon>
                                 <div class="launch-upload-copy">
-                                  <strong>点击或拖拽上传立项指南 PDF</strong>
-                                  <span>仅支持 PDF 文件，单个文件不超过 20MB</span>
+                                  <strong>点击或拖拽上传立项指南（PDF / DOCX）</strong>
+                                  <span>支持 PDF 或 DOCX 文件，单个文件不超过 100MB</span>
                                 </div>
                               </el-upload>
 
@@ -4729,15 +6445,24 @@ function resolveLandingCardIcon(title: string) {
                             </div>
                           </el-form-item>
 
-                          <el-form-item label="管理员备注" prop="remark">
-                            <el-input
-                              v-model="launchForm.remark"
-                              type="textarea"
-                              maxlength="500"
-                              show-word-limit
-                              :rows="5"
-                              placeholder="请输入内部备注，仅管理员可见，对外不展示"
-                            />
+                          <el-form-item label="目标群体" prop="target_groups">
+                            <el-select
+                              v-model="launchForm.target_groups"
+                              multiple
+                              collapse-tags
+                              collapse-tags-tooltip
+                              placeholder="请选择目标组织或人员群体"
+                            >
+                              <el-option
+                                v-for="group in launchTargetGroupOptions"
+                                :key="group"
+                                :label="group"
+                                :value="group"
+                              />
+                            </el-select>
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
                           </el-form-item>
                         </div>
                       </section>
@@ -4936,7 +6661,28 @@ function resolveLandingCardIcon(title: string) {
               </template>
 
               <template v-else-if="isApprovalRoleApplicationLanding">
-                <template v-if="approvalRoleInitiationView === 'projectMember'">
+                <template v-if="currentRoleKey === 'facultyLeader' && approvalRoleInitiationView === 'self'">
+                  <section class="module-entry-card-grid" aria-label="项目申报与立项功能入口">
+                    <section class="card-grid" aria-label="项目申报与立项功能入口">
+                      <button
+                        v-for="entry in facultyEntryCards"
+                        :key="entry.key"
+                        class="function-card"
+                        :style="{ '--accent': entry.accent, '--soft': entry.soft }"
+                        type="button"
+                        @click="setApprovalRoleInitiationView(entry.key)"
+                      >
+                        <span class="card-top">
+                          <span class="function-icon">{{ entry.iconText }}</span>
+                        </span>
+                        <span class="card-title">{{ entry.title }}<span v-if="entry.hint" class="field-doc-hint" :title="entry.hint">ℹ</span></span>
+                        <span class="enter">进入{{ entry.title }} <span aria-hidden="true">›</span></span>
+                      </button>
+                    </section>
+                  </section>
+                </template>
+
+                <template v-else-if="approvalRoleInitiationView === 'projectMember'">
                   <section class="module-hero leader-application-hero approval-application-hero">
                     <div class="hero-copy">
                       <div class="eyebrow">项目负责人视角</div>
@@ -4944,31 +6690,14 @@ function resolveLandingCardIcon(title: string) {
                       <p>查看可申报的科研项目立项批次，了解申报要求并提交项目申请。</p>
                     </div>
 
-                    <div class="approval-role-switch-panel" aria-label="项目申报与立项角色视角切换">
-                      <span>当前视角</span>
-                      <div class="approval-role-switcher">
-                        <button
-                          v-for="item in approvalRoleViewOptions"
-                          :key="item.key"
-                          type="button"
-                          class="approval-role-switch-button"
-                          :class="{ 'is-active': approvalRoleInitiationView === item.key }"
-                          :aria-pressed="approvalRoleInitiationView === item.key"
-                          @click="setApprovalRoleInitiationView(item.key)"
-                        >
-                          {{ item.label }}
-                        </button>
-                      </div>
-                    </div>
+
                   </section>
 
                   <InitiationBatchFilter
                     :model-value="leaderBatchFilter"
                     :year-options="initiationYearOptions"
                     :category-options="leaderProjectCategoryOptions"
-                    :status-options="leaderBatchStatusOptions"
                     show-category
-                    show-status
                     @update:model-value="updateLeaderBatchFilter"
                     @query="handleLeaderBatchQuery"
                     @reset="handleLeaderBatchReset"
@@ -4992,8 +6721,8 @@ function resolveLandingCardIcon(title: string) {
                           v-for="batch in pagedLeaderInitiationBatches"
                           :key="batch.id"
                           :batch="batch"
-                          :status="getLeaderBatchTimeStatus(batch)"
-                          :remaining-text="getLeaderBatchRemainingText(batch)"
+                          :status="projectMemberBatchDisplayStatus"
+                          :remaining-text="getProjectMemberBatchRemainingText(batch)"
                           @view="openProjectMemberInitiationBatchDetail"
                         />
 
@@ -5019,31 +6748,6 @@ function resolveLandingCardIcon(title: string) {
                 </template>
 
                 <template v-else-if="!activeApprovalRoleInitiationBatch">
-                  <section class="module-hero admin-application-hero approval-application-hero">
-                    <div class="hero-copy">
-                      <div class="eyebrow">{{ currentRole?.name }}</div>
-                      <h1>项目申报与立项</h1>
-                      <p>按批次查看需要当前角色审批的申报项目，集中处理评审中的项目审批事项。</p>
-                    </div>
-
-                    <div class="approval-role-switch-panel" aria-label="项目申报与立项角色视角切换">
-                      <span>当前视角</span>
-                      <div class="approval-role-switcher">
-                        <button
-                          v-for="item in approvalRoleViewOptions"
-                          :key="item.key"
-                          type="button"
-                          class="approval-role-switch-button"
-                          :class="{ 'is-active': approvalRoleInitiationView === item.key }"
-                          :aria-pressed="approvalRoleInitiationView === item.key"
-                          @click="setApprovalRoleInitiationView(item.key)"
-                        >
-                          {{ item.label }}
-                        </button>
-                      </div>
-                    </div>
-                  </section>
-
                   <section class="initiation-batch-filter-panel" aria-label="立项批次筛选">
                     <div class="batch-filter-row">
                       <div class="batch-filter-controls">
@@ -5145,7 +6849,15 @@ function resolveLandingCardIcon(title: string) {
                       </div>
 
                       <div class="batch-row-status">
-                        <span :class="getBatchStatusClass(batch)">{{ batch.status }}</span>
+                        <el-tag
+                          v-if="batch.flowStage && batch.status !== '已结束'"
+                          size="small"
+                          effect="plain"
+                          type="warning"
+                        >
+                          {{ getBatchFlowStageLabel(batch) }}
+                        </el-tag>
+                        <span v-else :class="getBatchStatusClass(batch)">{{ batch.status }}</span>
                       </div>
 
                       <footer class="batch-card-footer">
@@ -5182,102 +6894,755 @@ function resolveLandingCardIcon(title: string) {
                   </footer>
                 </template>
 
-                <template v-else>
-                  <section class="admin-project-panel batch-project-panel approval-project-panel" aria-label="立项项目">
-                    <header class="admin-panel-header">
-                      <div>
-                        <h2>立项项目</h2>
-                        <p>仅展示当前角色可审批的评审中项目，并支持进入项目审批。</p>
-                      </div>
+                <template v-else-if="!approvalRoleBatchStage">
+                  <section class="batch-stage-select-panel" aria-label="项目审批事项选择">
+                    <header class="batch-stage-select-head">
+                      <h2>{{ activeApprovalRoleInitiationBatch?.batchName }}</h2>
+                      <p>批次编号：{{ activeApprovalRoleInitiationBatch?.batchCode }}</p>
                     </header>
-
-                    <div class="admin-list-toolbar">
-                      <div class="admin-stat-tags" aria-label="审批项目统计">
-                        <span class="admin-stat-tag active approval-stat-readonly">
-                          <span>评审中</span>
-                          <strong>{{ approvalRoleReviewingProjects.length }}</strong>
-                        </span>
-                      </div>
-
-                      <span class="admin-submit-tip">仅显示评审中项目</span>
+                    <div class="batch-stage-cards">
+                      <article class="batch-stage-card" @click="approvalRoleBatchStage = 'formal'">
+                        <h3>形式审查审批</h3>
+                        <p>查看本批次形式审查报告，确认通过与不通过清单。</p>
+                        <span>进入 ›</span>
+                      </article>
+                      <article
+                        class="batch-stage-card"
+                        @click="openApprovalRoleAssignReviewers"
+                      >
+                        <h3>指定子方向与评委</h3>
+                        <p>为本批次申报项目指定所属子方向并分配评审评委，评委评分完成后进入评审结果汇总。</p>
+                        <span>进入 ›</span>
+                      </article>
+                      <article
+                        class="batch-stage-card"
+                        @click="approvalRoleBatchStage = 'final'; approvalRoleFinalSubStep = 'report'"
+                      >
+                        <h3>学部推荐立项终审</h3>
+                        <p>汇总专家评审意见，提交学部推荐立项终审结论。</p>
+                        <span>进入 ›</span>
+                      </article>
                     </div>
+                  </section>
+                </template>
 
-                    <el-table class="admin-project-table approval-project-table" :data="pagedApprovalRoleReviewingProjects" stripe>
-                      <el-table-column label="项目名称" min-width="280">
-                        <template #default="{ row }">
-                          <div class="admin-project-name-cell">
-                            <el-tooltip :content="row.projectName" placement="top" :show-after="300">
-                              <button
-                                class="admin-project-name"
-                                type="button"
-                                @click="openInitiationProjectDetail(row)"
+                <template v-else-if="approvalRoleBatchStage === 'guide'">
+                  <section class="formal-report-page" aria-label="立项指南发布">
+                    <nav
+                      class="approval-flow-steps"
+                      aria-label="项目流转线"
+                      title="原型演示：流转线各环节均可点击查看对应界面"
+                    >
+                      <button
+                        v-for="(step, index) in facultyApprovalFlowSteps"
+                        :key="step"
+                        type="button"
+                        class="approval-flow-step approval-flow-step--clickable"
+                        :class="{ active: index === approvalRoleBatchStageIndex, done: index < approvalRoleBatchStageIndex }"
+                        @click="selectFacultyApprovalFlowStep(index)"
+                      >
+                        <span class="approval-flow-index">{{ index + 1 }}</span>
+                        <span class="approval-flow-label">{{ step }}</span>
+                      </button>
+                    </nav>
+
+                    <el-empty description="立项指南发布：功能建设中（流转线第 1 步）">
+                      <el-button @click="approvalRoleBatchStage = 'formal'">返回形式审查</el-button>
+                    </el-empty>
+                  </section>
+                </template>
+
+                <template v-else-if="approvalRoleBatchStage === 'recheck'">
+                  <section class="formal-report-page" aria-label="复审阶段">
+                    <nav
+                      class="approval-flow-steps"
+                      aria-label="项目流转线"
+                      title="原型演示：流转线各环节均可点击查看对应界面"
+                    >
+                      <button
+                        v-for="(step, index) in facultyApprovalFlowSteps"
+                        :key="step"
+                        type="button"
+                        class="approval-flow-step approval-flow-step--clickable"
+                        :class="{ active: index === approvalRoleBatchStageIndex, done: index < approvalRoleBatchStageIndex }"
+                        @click="selectFacultyApprovalFlowStep(index)"
+                      >
+                        <span class="approval-flow-index">{{ index + 1 }}</span>
+                        <span class="approval-flow-label">{{ step }}</span>
+                      </button>
+                    </nav>
+
+                    <el-empty v-if="!facultyRecheckMonitorRows.length" description="本批次暂无进入复审的项目" />
+                    <template v-else>
+                      <!-- AN-MWVFRNN7：学部复审阶段 — 展示本学部复审评审报告（仅本学部数据） -->
+                      <section class="formal-report-section">
+                        <h3>报告头</h3>
+                        <el-descriptions :column="2" border>
+                          <el-descriptions-item label="报告名称">2026 年秋季批次复审评审报告（学部视角）</el-descriptions-item>
+                          <el-descriptions-item label="所属学部">{{ facultyLeaderAcademy }}</el-descriptions-item>
+                          <el-descriptions-item label="复审范围">学部终审推荐且复议后进入复审的项目（仅本学部）</el-descriptions-item>
+                          <el-descriptions-item label="编制时间">2026-11-24</el-descriptions-item>
+                        </el-descriptions>
+                      </section>
+
+                      <section class="formal-report-section">
+                        <h3>复审结论概览</h3>
+                        <div class="formal-report-summary">
+                          <article>
+                            <span>进入复审</span>
+                            <strong>{{ facultyRecheckMonitorRows.length }} 项</strong>
+                          </article>
+                          <article>
+                            <span>复审已完成</span>
+                            <strong>{{ facultyArchiveRows.length }} 项</strong>
+                          </article>
+                          <article>
+                            <span>复审进行中 / 待启动</span>
+                            <strong>{{ facultyRecheckMonitorRows.length - facultyArchiveRows.length }} 项</strong>
+                          </article>
+                        </div>
+                      </section>
+
+                      <section class="formal-report-section">
+                        <h3>复审项目清单 {{ facultyRecheckMonitorRows.length }} 项・仅展示本学部项目</h3>
+                        <el-table :data="facultyRecheckMonitorRows" border size="small">
+                          <el-table-column label="项目名称" min-width="240">
+                            <template #default="{ row }">
+                              <el-button
+                                link
+                                type="primary"
+                                class="final-project-link"
+                                @click="openFacultyRecheckScoreDetail(row)"
                               >
                                 {{ row.projectName }}
-                              </button>
-                            </el-tooltip>
-                            <span>{{ row.projectCode }}</span>
-                          </div>
-                        </template>
-                      </el-table-column>
+                              </el-button>
+                            </template>
+                          </el-table-column>
+                          <el-table-column prop="leader" label="项目负责人" width="100" align="center" />
+                          <el-table-column prop="finalScore" label="初审得分" width="90" align="center" />
+                          <el-table-column label="复审评委" min-width="160">
+                            <template #default="{ row }">
+                              <div class="pmo-recheck-reviewer-tags">
+                                <el-tag
+                                  v-for="reviewer in row.recheckReviewers"
+                                  :key="reviewer"
+                                  size="small"
+                                  effect="plain"
+                                >
+                                  {{ reviewer }}
+                                </el-tag>
+                              </div>
+                            </template>
+                          </el-table-column>
+                          <el-table-column label="评分进度" width="140">
+                            <template #default="{ row }">
+                              <el-progress
+                                :percentage="Math.round((row.submittedCount / row.totalCount) * 100)"
+                                :status="row.submittedCount === row.totalCount ? 'success' : undefined"
+                              />
+                              <span class="pmo-recheck-progress-text">{{ row.submittedCount }}/{{ row.totalCount }} 已提交</span>
+                            </template>
+                          </el-table-column>
+                          <el-table-column label="复审状态" width="92" align="center">
+                            <template #default="{ row }">
+                              <el-tag
+                                size="small"
+                                effect="plain"
+                                :type="row.status === '已完成' ? 'success' : row.status === '进行中' ? 'primary' : 'info'"
+                              >
+                                {{ row.status }}
+                              </el-tag>
+                            </template>
+                          </el-table-column>
+                          <el-table-column prop="latestUpdate" label="最新提交" width="140" align="center" />
+                        </el-table>
+                      </section>
 
-                      <el-table-column label="负责人／部门" min-width="120">
-                        <template #default="{ row }">
-                          <div class="admin-two-line-cell">
-                            <strong>{{ row.leader }}</strong>
-                            <span>{{ row.department }}</span>
-                          </div>
-                        </template>
-                      </el-table-column>
+                      <p class="formal-report-note">
+                        说明：本报告仅展示{{ facultyLeaderAcademy }}进入复审的项目；点击项目名称可查看复审评委打分明细。
+                      </p>
+                    </template>
 
-                      <el-table-column prop="submitTime" label="提交时间" min-width="130" />
-
-                      <el-table-column label="当前节点" min-width="112">
-                        <template #default="{ row }">
-                          <el-tag size="small" effect="plain" :class="getInitiationNodeTagClass(row.currentNode)">
-                            {{ row.currentNode }}
-                          </el-tag>
-                        </template>
-                      </el-table-column>
-
-                      <el-table-column label="评审进度" min-width="132">
-                        <template #default="{ row }">
-                          <div class="admin-review-progress-cell">
-                            <el-progress
-                              class="admin-review-progress"
-                              :percentage="getReviewProgressPercentage(row)"
-                              :show-text="false"
-                              :stroke-width="6"
-                            />
-                            <span>{{ getReviewProgressText(row) }}</span>
-                          </div>
-                        </template>
-                      </el-table-column>
-
-                      <el-table-column label="操作" width="180">
-                        <template #default="{ row }">
-                          <div class="admin-table-actions approval-table-actions">
-                            <el-button type="primary" link @click="openInitiationProjectDetail(row)">查看详情</el-button>
-                            <el-button type="primary" link @click="openApprovalProjectDialog(row)">项目审批</el-button>
-                          </div>
-                        </template>
-                      </el-table-column>
-
-                      <template #empty>
-                        <el-empty description="该批次暂无当前角色可审批的评审中项目" />
-                      </template>
-                    </el-table>
-
-                    <footer class="admin-project-pagination">
-                      <span>共 {{ approvalRoleReviewingProjects.length }} 条</span>
-                      <el-pagination
-                        v-model:current-page="approvalRoleProjectPage"
-                        v-model:page-size="approvalRoleProjectPageSize"
-                        background
-                        layout="prev, pager, next"
-                        :total="approvalRoleReviewingProjects.length"
-                      />
+                    <footer class="formal-report-actions">
+                      <el-button @click="approvalRoleBatchStage = ''">返回批次详情</el-button>
                     </footer>
                   </section>
+                </template>
+
+                <template v-else-if="approvalRoleBatchStage === 'archive'">
+                  <section class="formal-report-page" aria-label="立项入库">
+                    <nav
+                      class="approval-flow-steps"
+                      aria-label="项目流转线"
+                      title="原型演示：流转线各环节均可点击查看对应界面"
+                    >
+                      <button
+                        v-for="(step, index) in facultyApprovalFlowSteps"
+                        :key="step"
+                        type="button"
+                        class="approval-flow-step approval-flow-step--clickable"
+                        :class="{ active: index === approvalRoleBatchStageIndex, done: index < approvalRoleBatchStageIndex }"
+                        @click="selectFacultyApprovalFlowStep(index)"
+                      >
+                        <span class="approval-flow-index">{{ index + 1 }}</span>
+                        <span class="approval-flow-label">{{ step }}</span>
+                      </button>
+                    </nav>
+
+                    <el-empty v-if="!facultyArchiveRows.length" description="本学部暂无复审通过进入立项库的项目" />
+                    <template v-else>
+                      <!-- AN-MWVFS94C：学部立项入库 — 展示本学部最终复审通过的项目 -->
+                      <section class="formal-report-section">
+                        <h3>报告头</h3>
+                        <el-descriptions :column="2" border>
+                          <el-descriptions-item label="报告名称">2026 年秋季批次立项入库清单（学部视角）</el-descriptions-item>
+                          <el-descriptions-item label="所属学部">{{ facultyLeaderAcademy }}</el-descriptions-item>
+                          <el-descriptions-item label="入库口径">复审通过（复审评委评分全部提交且结论为通过）的项目</el-descriptions-item>
+                          <el-descriptions-item label="编制时间">2026-11-24</el-descriptions-item>
+                        </el-descriptions>
+                      </section>
+
+                      <section class="formal-report-section">
+                        <h3>立项入库概览</h3>
+                        <div class="formal-report-summary">
+                          <article>
+                            <span>进入复审</span>
+                            <strong>{{ facultyRecheckMonitorRows.length }} 项</strong>
+                          </article>
+                          <article>
+                            <span>复审通过・立项入库</span>
+                            <strong>{{ facultyArchiveRows.length }} 项</strong>
+                          </article>
+                          <article>
+                            <span>立项率</span>
+                            <strong>
+                              {{
+                                Math.round(
+                                  (facultyArchiveRows.length / facultyRecheckMonitorRows.length) * 100,
+                                )
+                              }}%
+                            </strong>
+                          </article>
+                        </div>
+                      </section>
+
+                      <section class="formal-report-section">
+                        <h3>立项清单 {{ facultyArchiveRows.length }} 项・最终复审通过</h3>
+                        <el-table :data="facultyArchiveRows" border size="small">
+                          <el-table-column label="立项编号" width="140" align="center">
+                            <template #default="{ $index }">
+                              LX-2026-0{{ $index + 1 }}
+                            </template>
+                          </el-table-column>
+                          <el-table-column label="项目名称" min-width="240">
+                            <template #default="{ row }">
+                              <el-button
+                                link
+                                type="primary"
+                                class="final-project-link"
+                                @click="openFacultyRecheckScoreDetail(row)"
+                              >
+                                {{ row.projectName }}
+                              </el-button>
+                            </template>
+                          </el-table-column>
+                          <el-table-column prop="leader" label="项目负责人" width="100" align="center" />
+                          <el-table-column prop="finalScore" label="初审得分" width="90" align="center" />
+                          <el-table-column label="复审评委" min-width="160">
+                            <template #default="{ row }">
+                              <div class="pmo-recheck-reviewer-tags">
+                                <el-tag
+                                  v-for="reviewer in row.recheckReviewers"
+                                  :key="reviewer"
+                                  size="small"
+                                  effect="plain"
+                                >
+                                  {{ reviewer }}
+                                </el-tag>
+                              </div>
+                            </template>
+                          </el-table-column>
+                          <el-table-column label="复审结论" width="100" align="center">
+                            <template #default>
+                              <el-tag size="small" type="success" effect="plain">复审通过</el-tag>
+                            </template>
+                          </el-table-column>
+                          <el-table-column label="入库日期" width="110" align="center">
+                            <template #default="{ row }">
+                              {{ row.latestUpdate === '——' ? '2026-11-24' : row.latestUpdate.slice(0, 10) }}
+                            </template>
+                          </el-table-column>
+                        </el-table>
+                      </section>
+
+                      <p class="formal-report-note">
+                        说明：立项入库仅收录{{ facultyLeaderAcademy }}最终复审通过的项目；点击项目名称可查看复审评委打分明细。
+                      </p>
+                    </template>
+
+                    <footer class="formal-report-actions">
+                      <el-button @click="approvalRoleBatchStage = ''">返回批次详情</el-button>
+                    </footer>
+                  </section>
+                </template>
+
+                <template v-else-if="approvalRoleBatchStage === 'final'">
+                  <section class="final-review-page" aria-label="学部初审阶段">
+                    <nav
+                      class="approval-flow-steps"
+                      aria-label="项目流转线"
+                      title="原型演示：流转线各环节均可点击查看对应界面"
+                    >
+                      <button
+                        v-for="(step, index) in facultyApprovalFlowSteps"
+                        :key="step"
+                        class="approval-flow-step approval-flow-step--clickable"
+                        :class="{ active: index === approvalRoleBatchStageIndex, done: index < approvalRoleBatchStageIndex }"
+                        @click="selectFacultyApprovalFlowStep(index)"
+                      >
+                        <span class="approval-flow-index">{{ index + 1 }}</span>
+                        <span class="approval-flow-label">{{ step }}</span>
+                      </button>
+                    </nav>
+
+                    <nav class="recheck-sub-steps final-sub-steps" aria-label="初审子步骤">
+                      <button
+                        type="button"
+                        class="recheck-sub-step"
+                        :class="{ active: approvalRoleFinalSubStep === 'assign' }"
+                        @click="selectApprovalRoleFinalSubStep('assign')"
+                      >
+                        <span class="recheck-sub-index">1</span>
+                        <span class="recheck-sub-label">指定子方向与评委</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="recheck-sub-step"
+                        :class="{ active: approvalRoleFinalSubStep === 'report' }"
+                        @click="selectApprovalRoleFinalSubStep('report')"
+                      >
+                        <span class="recheck-sub-index">2</span>
+                        <span class="recheck-sub-label">评审结果报告</span>
+                      </button>
+                    </nav>
+
+                    <template v-if="approvalRoleFinalSubStep === 'assign'">
+                      <section class="final-assign-intro" aria-label="评委分配说明">
+                        <h2>指定子方向与评委</h2>
+                        <p>
+                          当前批次：{{ activeApprovalRoleInitiationBatch?.batchName }}（{{ activeApprovalRoleInitiationBatch?.batchCode }}）。
+                          为本批次申报项目指定所属子方向并分配评审评委；全部评委完成评分后，进入「评审结果报告」汇总初审结论。
+                        </p>
+                      </section>
+
+                      <section class="subdirection-assign-page">
+                        <ReviewerAssignmentPanel />
+                      </section>
+                    </template>
+
+                    <template v-else>
+                    <header class="formal-report-head">
+                      <div>
+                        <h2>评审结果报告</h2>
+                        <p>{{ finalReviewReport.kicker }}</p>
+                      </div>
+                      <el-tag type="success" effect="light">{{ finalReviewReport.statusTag }}</el-tag>
+                    </header>
+
+                    <section class="formal-report-section">
+                      <h3>评审基本信息</h3>
+                      <el-descriptions :column="2" border>
+                        <el-descriptions-item
+                          v-for="item in finalReviewReport.info"
+                          :key="item.label"
+                          :label="item.label"
+                        >
+                          {{ item.value }}
+                        </el-descriptions-item>
+                      </el-descriptions>
+                    </section>
+
+                    <section class="formal-report-section">
+                      <h3>结论概览</h3>
+                      <div class="formal-report-summary">
+                        <article>
+                          <span>申报项目</span>
+                          <strong>{{ finalReviewReport.overview.declared }}</strong>
+                        </article>
+                        <article>
+                          <span>拟推荐进入复审</span>
+                          <strong>{{ finalReviewReport.overview.recommended }}</strong>
+                        </article>
+                        <article>
+                          <span>平均分</span>
+                          <strong>{{ finalReviewReport.overview.average }}</strong>
+                        </article>
+                        <article>
+                          <span>最高分</span>
+                          <strong>{{ finalReviewReport.overview.highest }}</strong>
+                        </article>
+                      </div>
+                    </section>
+
+                    <section class="formal-report-section">
+                      <h3>学部初审结果汇总表</h3>
+                      <p class="final-weight-note">{{ finalReviewReport.weightNote }}</p>
+                      <div class="final-batch-actions">
+                        <span>已选 {{ finalSelectedRows.length }} 单</span>
+                        <el-button size="small" @click="batchSetFinalRecommendation(false)">批量不推荐</el-button>
+                        <el-button size="small" type="primary" @click="batchSetFinalRecommendation(true)">批量推荐</el-button>
+                      </div>
+                      <el-table
+                        ref="finalSummaryTableRef"
+                        class="final-summary-table final-summary-table--editable"
+                        :data="finalReviewRows"
+                        border
+                        row-key="seq"
+                        @selection-change="handleFinalSelectionChange"
+                      >
+                        <el-table-column type="selection" width="42" />
+                        <el-table-column label="推荐次序" width="128" align="center">
+                          <template #default="{ row }">
+                            <!-- AN-MWUFAJRV：直接输入目标名次即调序（el-input type=number） -->
+                            <el-input
+                              :model-value="String(row.seq)"
+                              type="number"
+                              size="small"
+                              class="final-rank-input"
+                              @change="(value: string) => moveFinalReviewRowTo(row, Number(value) || row.seq)"
+                            />
+                          </template>
+                        </el-table-column>
+                        <!-- AN-MWVFPQVT：项目名称可点进入项目评审详情，操作列不再放「查看」 -->
+                        <el-table-column label="项目名称" min-width="240">
+                          <template #default="{ row }">
+                            <el-button
+                              link
+                              type="primary"
+                              class="final-project-link"
+                              @click="openFinalScoreDetail(row)"
+                            >
+                              {{ row.projectName }}
+                            </el-button>
+                          </template>
+                        </el-table-column>
+                        <el-table-column prop="leader" label="项目负责人" width="96" />
+                        <el-table-column prop="subDirection" label="所属子方向" width="100" />
+                        <el-table-column label="评分结果" width="120" align="center">
+                          <template #default="{ row }">
+                            <div class="final-score-cell">
+                              <strong>{{ row.score }}</strong>
+                              <span>Z={{ row.zScore }}</span>
+                            </div>
+                          </template>
+                        </el-table-column>
+                        <el-table-column label="战略相关标注" width="112" align="center">
+                          <template #default="{ row }">
+                            <button
+                              type="button"
+                              class="strategic-star"
+                              :class="{ 'is-active': row.strategicStar }"
+                              @click="toggleStrategicStar(row)"
+                            >
+                              战略相关
+                            </button>
+                          </template>
+                        </el-table-column>
+                        <el-table-column label="对应计划申请的外部重大项目（学部战略牵引）" min-width="260">
+                          <template #default="{ row }">
+                            <el-input
+                              :model-value="row.majorProject"
+                              size="small"
+                              placeholder="填写对应外部重大项目"
+                              @change="(value: string) => saveFinalReviewRowField(row, 'majorProject', value)"
+                            />
+                          </template>
+                        </el-table-column>
+                        <el-table-column label="具体评审意见" min-width="240">
+                          <template #default="{ row }">
+                            <el-input
+                              :model-value="row.reviewComment"
+                              type="textarea"
+                              :rows="2"
+                              resize="none"
+                              placeholder="填写具体评审意见"
+                              @change="(value: string) => saveFinalReviewRowField(row, 'reviewComment', value)"
+                            />
+                          </template>
+                        </el-table-column>
+                        <el-table-column label="调整名次" width="88" align="center">
+                          <template #default="{ row }">
+                            <span
+                              class="rank-change"
+                              :class="row.rankChange === 'up' ? 'is-up' : row.rankChange === 'down' ? 'is-down' : ''"
+                            >
+                              {{ row.rankChange === 'up' ? '上升' : row.rankChange === 'down' ? '下降' : '-' }}
+                            </span>
+                          </template>
+                        </el-table-column>
+                        <el-table-column label="是否推荐立项" width="110" align="center">
+                          <template #default="{ row }">
+                            <el-tag :type="row.recommended ? 'success' : 'danger'" effect="light">
+                              {{ row.recommended ? '推荐' : '不推荐' }}
+                            </el-tag>
+                          </template>
+                        </el-table-column>
+                        <el-table-column label="操作" width="88" align="center" fixed="right">
+                          <template #default="{ row }">
+                            <div class="final-row-move-actions">
+                              <!-- AN-MWUFAJRV：↑↓ 调序按钮（原生 title 提示；el-tooltip 包裹会拦截 click， 弃用） -->
+                              <!-- AN-MWVFPQVT：评审详情改由项目名称进入，「查看」按钮移除 -->
+                              <el-button
+                                link
+                                type="primary"
+                                title="上移一位"
+                                :disabled="finalReviewRows[0]?.seq === row.seq"
+                                :icon="ArrowUp"
+                                @click="moveFinalReviewRow(row, -1)"
+                              />
+                              <el-button
+                                link
+                                type="primary"
+                                title="下移一位"
+                                :disabled="finalReviewRows[finalReviewRows.length - 1]?.seq === row.seq"
+                                :icon="ArrowDown"
+                                @click="moveFinalReviewRow(row, 1)"
+                              />
+                            </div>
+                          </template>
+                        </el-table-column>
+                      </el-table>
+                    </section>
+
+                    <section class="formal-report-section">
+                      <h3>学部总体评语</h3>
+                      <p class="final-overall-comment">{{ finalReviewReport.overallComment1 }}</p>
+                      <p class="final-overall-comment">{{ finalReviewReport.overallComment2 }}</p>
+                    </section>
+
+                    <footer class="final-review-footer">
+                      <div class="final-review-sign">
+                        <el-tag size="small" effect="plain">{{ finalReviewReport.draftSavedTag }}</el-tag>
+                        <span>{{ finalReviewReport.signers }}</span>
+                      </div>
+                      <div class="formal-report-actions">
+                        <el-button @click="approvalRoleBatchStage = ''">返回</el-button>
+                        <el-button type="primary" @click="facultyRecommendReportVisible = true">
+                          学部生成推荐报告
+                        </el-button>
+                      </div>
+                    </footer>
+
+                                        </template>
+                  </section>
+
+                <el-dialog
+                  v-model="facultyRecommendReportVisible"
+                  title="学部推荐报告（预览）"
+                  width="min(1200px, 96vw)"
+                  top="4vh"
+                  append-to-body
+                  destroy-on-close
+                  class="faculty-recommend-report-dialog"
+                >
+                  <section class="faculty-recommend-report" aria-label="学部推荐报告">
+                    <header class="formal-report-head">
+                      <div>
+                        <h2>学部推荐报告</h2>
+                        <p>{{ facultyRecommendReport.kicker }}</p>
+                      </div>
+                      <el-tag type="success" effect="light">{{ facultyRecommendReport.statusTag }}</el-tag>
+                    </header>
+
+                    <section class="formal-report-section">
+                      <h3>报告基本信息</h3>
+                      <el-descriptions :column="2" border>
+                        <el-descriptions-item
+                          v-for="item in facultyRecommendReport.info"
+                          :key="item.label"
+                          :label="item.label"
+                        >
+                          {{ item.value }}
+                        </el-descriptions-item>
+                      </el-descriptions>
+                    </section>
+
+                    <section class="formal-report-section">
+                      <h3>结论概览</h3>
+                      <div class="formal-report-summary">
+                        <article v-for="item in facultyRecommendReport.overview" :key="item.label">
+                          <span>{{ item.label }}</span>
+                          <strong>{{ item.value }}</strong>
+                        </article>
+                      </div>
+                    </section>
+
+                    <section class="formal-report-section">
+                      <h3>推荐清单（主体）</h3>
+                      <el-table :data="recommendRows" border>
+                        <el-table-column prop="order" label="推荐次序" width="84" align="center" />
+                        <el-table-column prop="projectName" label="项目名称" min-width="200" show-overflow-tooltip />
+                        <el-table-column prop="leader" label="申请人" width="84" />
+                        <el-table-column prop="subDirection" label="所属子方向" width="96" />
+                        <el-table-column label="评分结果" width="110" align="center">
+                          <template #default="{ row }">
+                            <div class="final-score-cell">
+                              <strong>{{ row.score }}</strong>
+                              <span v-if="row.zScore">Z={{ row.zScore }}</span>
+                            </div>
+                          </template>
+                        </el-table-column>
+                        <el-table-column label="战略相关标注" width="110" align="center">
+                          <template #default="{ row }">
+                            <el-tag v-if="row.strategic" type="warning" effect="plain" size="small">★战略相关</el-tag>
+                            <span v-else>—</span>
+                          </template>
+                        </el-table-column>
+                        <el-table-column prop="majorProject" label="重大项目关联描述" min-width="240" show-overflow-tooltip />
+                        <el-table-column prop="reviewComment" label="项目评语" min-width="240" show-overflow-tooltip />
+                        <el-table-column prop="leaderOpinion" label="学部负责人意见" min-width="180" show-overflow-tooltip />
+                      </el-table>
+                    </section>
+
+                    <section class="formal-report-section">
+                      <h3>不推荐清单</h3>
+                      <el-table :data="notRecommendedRows" border>
+                        <el-table-column prop="projectName" label="项目名称" min-width="200" show-overflow-tooltip />
+                        <el-table-column prop="leader" label="申请人" width="84" />
+                        <el-table-column prop="subDirection" label="所属子方向" width="96" />
+                        <el-table-column label="评分结果" width="110" align="center">
+                          <template #default="{ row }">
+                            <div class="final-score-cell">
+                              <strong>{{ row.score }}</strong>
+                              <span v-if="row.zScore">Z={{ row.zScore }}</span>
+                            </div>
+                          </template>
+                        </el-table-column>
+                        <el-table-column prop="reviewComment" label="项目评语" min-width="240" show-overflow-tooltip />
+                        <el-table-column prop="leaderOpinion" label="学部负责人意见" min-width="200" show-overflow-tooltip />
+                      </el-table>
+                    </section>
+
+                    <section class="formal-report-section">
+                      <h3>学部评语（整体）</h3>
+                      <p class="final-overall-comment">{{ facultyRecommendReport.overallComment }}</p>
+                      <p class="faculty-report-signers">
+                        {{ facultyRecommendReport.signers }} | {{ facultyRecommendReport.signDate }}
+                      </p>
+                    </section>
+                  </section>
+                  <template #footer>
+                    <el-button @click="facultyRecommendReportVisible = false">关闭</el-button>
+                  </template>
+                </el-dialog></template>
+
+                <template v-else>
+                  <section class="formal-report-page" aria-label="形式审查报告">
+                    <nav
+                      class="approval-flow-steps"
+                      aria-label="项目流转线"
+                      title="原型演示：流转线各环节均可点击查看对应界面"
+                    >
+                      <button
+                        v-for="(step, index) in facultyApprovalFlowSteps"
+                        :key="step"
+                        type="button"
+                        class="approval-flow-step approval-flow-step--clickable"
+                        :class="{ active: index === approvalRoleBatchStageIndex, done: index < approvalRoleBatchStageIndex }"
+                        @click="selectFacultyApprovalFlowStep(index)"
+                      >
+                        <span class="approval-flow-index">{{ index + 1 }}</span>
+                        <span class="approval-flow-label">{{ step }}</span>
+                      </button>
+                    </nav>
+
+                    <header class="formal-report-head">
+                      <div>
+                        <h2>形式审查报告</h2>
+                        <p>{{ formalReviewReport.title }}</p>
+                        <span class="formal-report-version">{{ formalReviewReport.version }}</span>
+                      </div>
+                      <el-tag type="success" effect="light">{{ formalReviewReport.version }}</el-tag>
+                    </header>
+
+                    <section class="formal-report-section">
+                      <h3>报告头</h3>
+                      <el-descriptions :column="2" border>
+                        <el-descriptions-item
+                          v-for="item in formalReviewReport.head"
+                          :key="item.label"
+                          :label="item.label"
+                        >
+                          {{ item.value }}
+                        </el-descriptions-item>
+                      </el-descriptions>
+                    </section>
+
+                    <section class="formal-report-section">
+                      <h3>结论概览</h3>
+                      <div class="formal-report-summary">
+                        <article>
+                          <span>累计提交</span>
+                          <strong>{{ formalReviewReport.submittedCount }} 单</strong>
+                        </article>
+                        <article>
+                          <span>通过</span>
+                          <strong>{{ formalReviewReport.passedCount }} 单・通过率 {{ formalReviewReport.passedRate }}</strong>
+                          <em v-if="formalReviewReport.externalPassedCount">
+                            其中外部申请人 {{ formalReviewReport.externalPassedCount }} 单（清单内标注）
+                          </em>
+                        </article>
+                        <article>
+                          <span>不通过</span>
+                          <strong>{{ formalReviewReport.rejectedCount }} 单</strong>
+                        </article>
+                      </div>
+                    </section>
+
+                    <section class="formal-report-section">
+                      <h3>通过清单 {{ formalReviewReport.passedCount }} 单・包干制固定额度</h3>
+                      <el-table :data="formalReviewReport.passedRows" border>
+                        <el-table-column prop="code" label="单据号" width="140" />
+                        <!-- AN-MWVFPQVT：项目名称点击进入项目评审详情（三评委打分），「查看」操作列移除 -->
+                        <el-table-column label="项目名称" min-width="280">
+                          <template #default="{ row }">
+                            <el-button
+                              link
+                              type="primary"
+                              class="final-project-link"
+                              @click="openFormalPassedScoreDetail(row)"
+                            >
+                              {{ row.projectName }}
+                            </el-button>
+                          </template>
+                        </el-table-column>
+                        <el-table-column prop="leader" label="项目负责人" width="120" />
+                        <el-table-column label="外部申请人标注" width="130" align="center">
+                          <template #default="{ row }">
+                            <el-tag v-if="row.external" type="warning" effect="plain" size="small">外部申请人</el-tag>
+                            <span v-else>—</span>
+                          </template>
+                        </el-table-column>
+                      </el-table>
+                    </section>
+
+                    <section class="formal-report-section">
+                      <h3>不通过清单 {{ formalReviewReport.rejectedCount }} 单</h3>
+                      <el-table :data="formalReviewReport.rejectedRows" border>
+                        <el-table-column prop="projectName" label="项目名称" min-width="260" show-overflow-tooltip />
+                        <el-table-column prop="leader" label="申请人" width="110" />
+                        <el-table-column prop="reason" label="不通过原因" min-width="280" show-overflow-tooltip />
+                      </el-table>
+                    </section>
+
+                    <footer class="formal-report-actions">
+                      <el-button @click="approvalRoleBatchStage = ''">返回批次详情</el-button>
+                      <el-button type="primary" @click="openApprovalRoleAssignReviewers">
+                        前往学部指定子方向
+                      </el-button>
+                    </footer>
+                  </section>
+
 
                   <el-dialog
                     v-model="approvalDialogVisible"
@@ -5326,7 +7691,103 @@ function resolveLandingCardIcon(title: string) {
                       </el-button>
                     </template>
                   </el-dialog>
+
+                  <el-dialog
+                    v-model="reviewReportVisible"
+                    class="formal-review-report-dialog"
+                    title="形式审查报告"
+                    width="960px"
+                    top="4vh"
+                    destroy-on-close
+                  >
+                    <section class="formal-report-body">
+                      <header class="formal-report-head">
+                        <div>
+                          <h2>形式审查报告</h2>
+                          <p>{{ formalReviewReport.title }}</p>
+                          <span class="formal-report-version">{{ formalReviewReport.version }}</span>
+                        </div>
+                        <el-tag type="success" effect="light">{{ formalReviewReport.version }}</el-tag>
+                      </header>
+
+                      <section class="formal-report-section">
+                        <h3>报告头</h3>
+                        <el-descriptions :column="2" border>
+                          <el-descriptions-item
+                            v-for="item in formalReviewReport.head"
+                            :key="item.label"
+                            :label="item.label"
+                          >
+                            {{ item.value }}
+                          </el-descriptions-item>
+                        </el-descriptions>
+                      </section>
+
+                      <section class="formal-report-section">
+                        <h3>结论概览</h3>
+                        <div class="formal-report-summary">
+                          <article>
+                            <span>累计提交</span>
+                            <strong>{{ formalReviewReport.submittedCount }} 单</strong>
+                          </article>
+                          <article>
+                            <span>通过</span>
+                            <strong>{{ formalReviewReport.passedCount }} 单・通过率 {{ formalReviewReport.passedRate }}</strong>
+                            <em v-if="formalReviewReport.externalPassedCount">
+                              其中外部申请人 {{ formalReviewReport.externalPassedCount }} 单（清单内标注）
+                            </em>
+                          </article>
+                          <article>
+                            <span>不通过</span>
+                            <strong>{{ formalReviewReport.rejectedCount }} 单</strong>
+                          </article>
+                        </div>
+                      </section>
+
+                      <section class="formal-report-section">
+                        <h3>通过清单 {{ formalReviewReport.passedCount }} 单・包干制固定额度</h3>
+                        <el-table :data="formalReviewReport.passedRows" border>
+                          <el-table-column prop="code" label="单据号" width="140" />
+                          <!-- AN-MWVFPQVT：项目名称点击进入项目评审详情（三评委打分），「查看」操作列移除 -->
+                          <el-table-column label="项目名称" min-width="280">
+                            <template #default="{ row }">
+                              <el-button
+                                link
+                                type="primary"
+                                class="final-project-link"
+                                @click="openFormalPassedScoreDetail(row)"
+                              >
+                                {{ row.projectName }}
+                              </el-button>
+                            </template>
+                          </el-table-column>
+                          <el-table-column prop="leader" label="项目负责人" width="120" />
+                          <el-table-column label="外部申请人标注" width="130" align="center">
+                            <template #default="{ row }">
+                              <el-tag v-if="row.external" type="warning" effect="plain" size="small">外部申请人</el-tag>
+                              <span v-else>—</span>
+                            </template>
+                          </el-table-column>
+                        </el-table>
+                      </section>
+
+                      <section class="formal-report-section">
+                        <h3>不通过清单 {{ formalReviewReport.rejectedCount }} 单</h3>
+                        <el-table :data="formalReviewReport.rejectedRows" border>
+                          <el-table-column prop="projectName" label="项目名称" min-width="260" show-overflow-tooltip />
+                          <el-table-column prop="leader" label="申请人" width="110" />
+                          <el-table-column prop="reason" label="不通过原因" min-width="280" show-overflow-tooltip />
+                        </el-table>
+                      </section>
+                    </section>
+
+                    <template #footer>
+                      <el-button @click="reviewReportVisible = false">关闭</el-button>
+                    </template>
+                  </el-dialog>
                 </template>
+
+                    <FinalScoreDetailDialog v-model="finalScoreDetailVisible" :target="finalScoreDetailTarget" />
               </template>
 
               <template v-else-if="isStandardModuleLanding">
@@ -5350,7 +7811,7 @@ function resolveLandingCardIcon(title: string) {
                           <span v-else>{{ entry.iconText }}</span>
                         </span>
                       </span>
-                      <span class="card-title">{{ entry.title }}</span>
+                      <span class="card-title">{{ entry.title }}<span v-if="entry.hint" class="field-doc-hint" :title="entry.hint">ℹ</span></span>
                       <span class="enter">进入{{ entry.title }} <span aria-hidden="true">›</span></span>
                     </RouterLink>
 
@@ -5373,7 +7834,7 @@ function resolveLandingCardIcon(title: string) {
                           <span v-else>{{ entry.iconText }}</span>
                         </span>
                       </span>
-                      <span class="card-title">{{ entry.title }}</span>
+                      <span class="card-title">{{ entry.title }}<span v-if="entry.hint" class="field-doc-hint" :title="entry.hint">ℹ</span></span>
                       <span class="enter">进入{{ entry.title }} <span aria-hidden="true">›</span></span>
                     </button>
                   </section>
@@ -5401,7 +7862,7 @@ function resolveLandingCardIcon(title: string) {
                           <span v-else>{{ entry.iconText }}</span>
                         </span>
                       </span>
-                      <span class="card-title">{{ entry.title }}</span>
+                      <span class="card-title">{{ entry.title }}<span v-if="entry.hint" class="field-doc-hint" :title="entry.hint">ℹ</span></span>
                       <span class="enter">进入{{ entry.title }} <span aria-hidden="true">›</span></span>
                     </RouterLink>
 
@@ -5424,7 +7885,7 @@ function resolveLandingCardIcon(title: string) {
                           <span v-else>{{ entry.iconText }}</span>
                         </span>
                       </span>
-                      <span class="card-title">{{ entry.title }}</span>
+                      <span class="card-title">{{ entry.title }}<span v-if="entry.hint" class="field-doc-hint" :title="entry.hint">ℹ</span></span>
                       <span class="enter">进入{{ entry.title }} <span aria-hidden="true">›</span></span>
                     </button>
                   </section>
@@ -5752,26 +8213,7 @@ function resolveLandingCardIcon(title: string) {
                   <h1>项目申报与立项</h1>
                   <p>查看可申报的科研项目立项批次，了解申报要求并提交项目申请。</p>
                 </div>
-                <div
-                  v-if="isInitiationApprovalRole(currentRoleKey)"
-                  class="approval-role-switch-panel"
-                  aria-label="项目申报与立项角色视角切换"
-                >
-                  <span>当前视角</span>
-                  <div class="approval-role-switcher">
-                    <button
-                      v-for="item in approvalRoleViewOptions"
-                      :key="item.key"
-                      type="button"
-                      class="approval-role-switch-button"
-                      :class="{ 'is-active': item.key === 'projectMember' }"
-                      :aria-pressed="item.key === 'projectMember'"
-                      @click="setApprovalRoleInitiationView(item.key)"
-                    >
-                      {{ item.label }}
-                    </button>
-                  </div>
-                </div>
+
                 <div v-if="!isInitiationApprovalRole(currentRoleKey)" class="leader-hero-illustration" aria-hidden="true">
                   <span class="leader-hero-document"></span>
                   <span class="leader-hero-check">✓</span>
@@ -5782,9 +8224,7 @@ function resolveLandingCardIcon(title: string) {
                 :model-value="leaderBatchFilter"
                 :year-options="initiationYearOptions"
                 :category-options="leaderProjectCategoryOptions"
-                :status-options="leaderBatchStatusOptions"
                 show-category
-                show-status
                 @update:model-value="updateLeaderBatchFilter"
                 @query="handleLeaderBatchQuery"
                 @reset="handleLeaderBatchReset"
@@ -5805,29 +8245,30 @@ function resolveLandingCardIcon(title: string) {
                 <template v-else>
                   <div class="leader-batch-list">
                     <InitiationBatchCard
-                      v-for="batch in pagedLeaderInitiationBatches"
+                      v-for="batch in pagedProjectMemberInitiationBatches"
                       :key="batch.id"
                       :batch="batch"
-                      :status="getLeaderBatchTimeStatus(batch)"
-                      :remaining-text="getLeaderBatchRemainingText(batch)"
+                      :status="projectMemberBatchDisplayStatus"
+                      :remaining-text="getProjectMemberBatchRemainingText(batch)"
+                      :applied="hasProjectMemberApplied(batch.id)"
                       @view="openProjectMemberInitiationBatchDetail"
                     />
 
                     <el-empty
-                      v-if="pagedLeaderInitiationBatches.length === 0"
+                      v-if="pagedProjectMemberInitiationBatches.length === 0"
                       class="leader-batch-empty"
                       description="暂无符合条件的立项批次"
                     />
                   </div>
 
                   <footer class="leader-batch-pagination">
-                    <span>共 {{ filteredLeaderInitiationBatches.length }} 个立项批次</span>
+                    <span>共 {{ projectMemberInitiationBatches.length }} 个立项批次</span>
                     <el-pagination
                       v-model:current-page="leaderBatchPage"
                       v-model:page-size="leaderBatchPageSize"
                       background
                       layout="prev, pager, next"
-                      :total="filteredLeaderInitiationBatches.length"
+                      :total="projectMemberInitiationBatches.length"
                     />
                   </footer>
                 </template>
@@ -5842,11 +8283,12 @@ function resolveLandingCardIcon(title: string) {
               <template v-if="activeLeaderInitiationBatch">
                 <InitiationBatchDetail
                   :batch="activeLeaderInitiationBatch"
-                  :status="activeLeaderBatchStatus"
-                  :remaining-text="activeLeaderBatchRemainingText"
+                  :status="projectMemberBatchDisplayStatus"
+                  :remaining-text="projectMemberBatchDisplayStatus"
                   show-apply-action
-                  :can-apply="canSubmitLeaderInitiation"
-                  :apply-disabled-reason="leaderInitiationSubmitDisabledReason"
+                  :can-apply="true"
+                  :applied="hasProjectMemberApplied(activeLeaderInitiationBatch.id)"
+                  :applied-project-label="getProjectMemberAppliedProjectLabel(activeLeaderInitiationBatch.id)"
                   @preview-guide="previewProjectMemberGuide"
                   @download-guide="downloadProjectMemberGuide"
                   @apply="handleProjectMemberInitiationApply"
@@ -5856,8 +8298,8 @@ function resolveLandingCardIcon(title: string) {
                   <div class="leader-apply-status">
                     <span>当前申报状态</span>
                     <div>
-                      <span :class="getLeaderBatchStatusClass(activeLeaderBatchStatus)">
-                        {{ activeLeaderBatchStatus }}
+                      <span :class="getLeaderBatchStatusClass(projectMemberBatchDisplayStatus)">
+                        {{ projectMemberBatchDisplayStatus }}
                       </span>
                       <p>
                         请在 {{ getBatchApplyDeadline(activeLeaderInitiationBatch) }} 前完成提交
@@ -5867,21 +8309,16 @@ function resolveLandingCardIcon(title: string) {
 
                   <div class="leader-apply-actions">
                     <el-button @click="returnToProjectMemberInitiationBatchList">返回列表</el-button>
-                    <el-tooltip
-                      :disabled="canSubmitLeaderInitiation"
-                      :content="leaderInitiationSubmitDisabledReason"
-                      placement="top"
+                    <el-button
+                      :type="hasProjectMemberApplied(activeLeaderInitiationBatch.id) ? 'success' : 'primary'"
+                      @click="handleProjectMemberInitiationApply"
                     >
-                      <span class="leader-submit-button-wrap">
-                        <el-button
-                          type="primary"
-                          :disabled="!canSubmitLeaderInitiation"
-                          @click="handleProjectMemberInitiationApply"
-                        >
-                          立即申报
-                        </el-button>
-                      </span>
-                    </el-tooltip>
+                      {{
+                        hasProjectMemberApplied(activeLeaderInitiationBatch.id)
+                          ? '查看我的申请'
+                          : '立即申报'
+                      }}
+                    </el-button>
                   </div>
                 </footer>
 
@@ -5938,6 +8375,794 @@ function resolveLandingCardIcon(title: string) {
               </el-empty>
             </section>
 
+            <section v-else-if="isOfficeApprovalFeature" class="office-approval-page" aria-label="管理办项目审批">
+              <template v-if="officeApprovalSelectedBatchCode">
+                <header class="office-batch-context">
+                  <div class="office-batch-context-main">
+                    <h2>{{ officeApprovalSelectedBatch?.batchName }}</h2>
+                    <p>
+                      批次编号：{{ officeApprovalSelectedBatch?.batchCode }} ·
+                      {{ officeApprovalSelectedBatch?.project_category }} · 申报周期
+                      {{ officeApprovalSelectedBatch?.applyPeriod }}
+                    </p>
+                  </div>
+                  <el-tag
+                    :type="officeApprovalSelectedBatch?.status === '申报中' ? 'success' : 'info'"
+                    effect="light"
+                  >
+                    {{ officeApprovalSelectedBatch?.status }}
+                  </el-tag>
+                </header>
+
+              <nav
+                class="approval-flow-steps"
+                aria-label="项目流转线"
+                title="原型演示：流转线各环节均可点击查看对应界面"
+              >
+                <button
+                  v-for="(step, index) in officeApprovalFlowSteps"
+                  :key="step"
+                  type="button"
+                  class="approval-flow-step approval-flow-step--clickable"
+                  :class="{ active: index === officeActiveStageIndex, done: index < officeActiveStageIndex }"
+                  
+                  @click="officeApprovalStage = (['guide', 'formal', 'final', 'recheck', 'archive'] as const)[index]"
+                >
+                  <span class="approval-flow-index">{{ index + 1 }}</span>
+                  <span class="approval-flow-label">{{ step }}</span>
+                </button>
+              </nav>
+
+              <template v-if="officeActiveStage === 'guide'">
+                <section class="office-guide-form-wrap" aria-label="立项指南发布审批">
+                  <section class="launch-initiation-page" aria-label="立项指南发布审批">
+                    <header class="launch-page-titlebar">
+                      <div>
+                        <h1>立项指南发布・审批</h1>
+                      </div>
+                      <span
+                        class="launch-status-pill"
+                        :class="{ 'office-status-pill--rejected': officeGuideRejected }"
+                      >
+                        {{ officeGuideRejected ? '已驳回 · 待 PMO 修改' : '待管理办审批' }}
+                      </span>
+                    </header>
+
+                    <div v-if="officeGuideRejected" class="office-reject-note" role="alert">
+                      驳回理由：{{ officeGuideRejected.reason }}（{{ officeGuideRejected.at }}，已反馈 PMO）
+                    </div>
+
+                    <el-form
+                      ref="launchFormRef"
+                      class="launch-form-card"
+                      :model="launchForm"
+                      :rules="launchFormRules"
+                      label-position="top"
+                      status-icon
+                    >
+                      <section class="launch-form-section">
+                        <div class="launch-section-title">
+                          <span class="launch-section-index">01</span>
+                          <div>
+                            <h2>批次基本信息</h2>
+                          </div>
+                        </div>
+
+                        <div class="launch-form-grid">
+                          <el-form-item label="项目归属组织" prop="owner_organizations">
+                            <el-select
+                              v-model="launchForm.owner_organizations"
+                              multiple
+                              collapse-tags
+                              collapse-tags-tooltip
+                              placeholder="请按组织架构选择归属组织"
+                            >
+                              <el-option
+                                v-for="org in launchOwnerOrganizationOptions"
+                                :key="org"
+                                :label="org"
+                                :value="org"
+                              />
+                            </el-select>
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
+                          </el-form-item>
+
+                          <el-form-item prop="project_category">
+                            <template #label>
+                              <span class="field-doc-label">科研项目类别
+                                <span class="field-doc-hint" title="不同科研类别对应不同的审批流程、申请表单和预算形式">ℹ</span>
+                              </span>
+                            </template>
+                            <el-select v-model="launchForm.project_category" placeholder="请选择科研项目类别">
+                              <el-option
+                                v-for="category in launchProjectCategoryOptions"
+                                :key="category"
+                                :label="category"
+                                :value="category"
+                              />
+                            </el-select>
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
+                          </el-form-item>
+
+                          <el-form-item label="批次编码" prop="batch_code">
+                            <el-input
+                              v-model.trim="launchForm.batch_code"
+                              maxlength="40"
+                              disabled
+                              placeholder="系统自动生成，全局唯一"
+                            />
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
+                          </el-form-item>
+
+                          <el-form-item label="批次名称" prop="batch_name">
+                            <el-input
+                              v-model.trim="launchForm.batch_name"
+                              maxlength="50"
+                              show-word-limit
+                              placeholder="请输入批次名称（≤50字）"
+                            />
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
+                          </el-form-item>
+
+                          <el-form-item label="项目经费来源" prop="funding_source">
+                            <el-select v-model="launchForm.funding_source" placeholder="请选择项目经费来源">
+                              <el-option
+                                v-for="source in launchFundingSourceOptions"
+                                :key="source"
+                                :label="source"
+                                :value="source"
+                              />
+                            </el-select>
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
+                          </el-form-item>
+
+                          <el-form-item label="项目预算方式" prop="budget_mode">
+                            <div class="launch-budget-mode-field">
+                              <el-select v-model="launchForm.budget_mode" placeholder="请选择项目预算方式">
+                                <el-option
+                                  v-for="mode in launchBudgetModeOptions"
+                                  :key="mode"
+                                  :label="mode"
+                                  :value="mode"
+                                />
+                              </el-select>
+                              <el-tooltip content="自定义配置预算模板，申请人按该批次指定模板填报" placement="top">
+                                <el-button class="launch-budget-config-btn" @click="handleConfigureBudgetTemplate">
+                                  配置模板
+                                </el-button>
+                              </el-tooltip>
+                            </div>
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
+                          </el-form-item>
+
+                          <el-form-item label="绑定流程模板" prop="workflow_template">
+                            <div class="launch-budget-mode-field">
+                              <el-select v-model="launchForm.workflow_template" placeholder="请选择已发布的流程模板">
+                                <el-option
+                                  v-for="tpl in launchWorkflowTemplateOptions"
+                                  :key="tpl"
+                                  :label="tpl"
+                                  :value="tpl"
+                                />
+                              </el-select>
+                              <el-tooltip content="自定义配置流程模板，该批次申报按此流程走审批" placement="top">
+                                <el-button class="launch-budget-config-btn" @click="handleConfigureWorkflowTemplate">
+                                  配置模板
+                                </el-button>
+                              </el-tooltip>
+                            </div>
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
+                          </el-form-item>
+
+                          <el-form-item label="绑定申报表单模板" prop="form_template">
+                            <div class="launch-budget-mode-field">
+                              <el-select v-model="launchForm.form_template" placeholder="请选择已发布的表单模板">
+                                <el-option
+                                  v-for="tpl in launchFormTemplateOptions"
+                                  :key="tpl"
+                                  :label="tpl"
+                                  :value="tpl"
+                                />
+                              </el-select>
+                              <el-tooltip content="自定义配置申报表单，申请人按该批次指定表单填报" placement="top">
+                                <el-button class="launch-budget-config-btn" @click="handleConfigureFormTemplate">
+                                  配置表单
+                                </el-button>
+                              </el-tooltip>
+                            </div>
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
+                          </el-form-item>
+
+                          <el-form-item label="申报项目限制" prop="declaration_limit">
+                            <el-select v-model="launchForm.declaration_limit" placeholder="请选择是否限制申报项目">
+                              <el-option
+                                v-for="option in launchDeclarationLimitOptions"
+                                :key="option"
+                                :label="option"
+                                :value="option"
+                              />
+                            </el-select>
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
+                          </el-form-item>
+
+                          <el-form-item label="发起人" prop="launch_owner">
+                            <el-input v-model="launchForm.launch_owner" disabled placeholder="当前操作人（PMO）" />
+                          </el-form-item>
+                        </div>
+
+                        <el-form-item
+                          class="launch-full-form-item"
+                          label="项目批次说明"
+                          prop="batch_introduction"
+                        >
+                          <div class="launch-richtext-shell">
+                            <div class="launch-richtext-toolbar" role="toolbar" aria-label="富文本工具栏">
+                              <span class="launch-richtext-group">
+                                <button type="button" class="launch-richtext-btn" title="加粗"><strong>B</strong></button>
+                                <button type="button" class="launch-richtext-btn" title="斜体"><em>I</em></button>
+                                <button type="button" class="launch-richtext-btn" title="下划线"><u>U</u></button>
+                                <button type="button" class="launch-richtext-btn" title="删除线"><s>S</s></button>
+                              </span>
+                              <span class="launch-richtext-sep"></span>
+                              <span class="launch-richtext-group">
+                                <button type="button" class="launch-richtext-btn" title="无序列表">• 列表</button>
+                                <button type="button" class="launch-richtext-btn" title="有序列表">1. 列表</button>
+                              </span>
+                              <span class="launch-richtext-sep"></span>
+                              <span class="launch-richtext-group">
+                                <button type="button" class="launch-richtext-btn" title="左对齐">⯇</button>
+                                <button type="button" class="launch-richtext-btn" title="居中">≡</button>
+                                <button type="button" class="launch-richtext-btn" title="右对齐">⯈</button>
+                              </span>
+                              <span class="launch-richtext-sep"></span>
+                              <span class="launch-richtext-group">
+                                <button type="button" class="launch-richtext-btn" title="插入链接">🔗</button>
+                                <button type="button" class="launch-richtext-btn" title="插入表格">⊞</button>
+                                <button type="button" class="launch-richtext-btn" title="插入图片">🖼</button>
+                              </span>
+                              <span class="launch-richtext-sep"></span>
+                              <span class="launch-richtext-group">
+                                <button type="button" class="launch-richtext-btn" title="字体颜色">A</button>
+                                <button type="button" class="launch-richtext-btn" title="撤销">↶</button>
+                                <button type="button" class="launch-richtext-btn" title="重做">↷</button>
+                              </span>
+                              <span class="launch-richtext-count">2000 字以内</span>
+                            </div>
+                            <div
+                              class="launch-richtext-editor"
+                              contenteditable="true"
+                              data-placeholder="请输入本批次的申报说明、重点方向或注意事项"
+                            ></div>
+                          </div>
+                        </el-form-item>
+                      </section>
+
+                      <div class="launch-form-divider"></div>
+
+                      <section class="launch-form-section">
+                        <div class="launch-section-title">
+                          <span class="launch-section-index success">02</span>
+                          <div>
+                            <h2>申报时间</h2>
+                          </div>
+                        </div>
+
+                        <div class="launch-form-grid">
+                          <el-form-item class="launch-inline-form-item" label="申报开始时间" prop="batch_apply_start">
+                            <el-date-picker
+                              v-model="launchForm.batch_apply_start"
+                              class="launch-date-picker"
+                              type="datetime"
+                              format="YYYY-MM-DD HH:mm"
+                              value-format="YYYY-MM-DD HH:mm"
+                              placeholder="请选择申报开始时间"
+                            />
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
+                          </el-form-item>
+
+                          <el-form-item class="launch-inline-form-item core-constraint-item" prop="batch_apply_deadline">
+                            <template #label>
+                              <span class="form-label-with-tag">
+                                <span>申报截止时间</span>
+                              </span>
+                            </template>
+                            <el-date-picker
+                              v-model="launchForm.batch_apply_deadline"
+                              class="launch-date-picker"
+                              type="datetime"
+                              format="YYYY-MM-DD HH:mm"
+                              value-format="YYYY-MM-DD HH:mm"
+                              placeholder="请选择申报截止时间"
+                            />
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
+                          </el-form-item>
+                        </div>
+                      </section>
+
+                    <LaunchPlanGantt />
+
+                      <div class="launch-form-divider"></div>
+
+                      <section class="launch-form-section">
+                        <div class="launch-section-title">
+                          <span class="launch-section-index violet">03</span>
+                          <div>
+                            <h2>指南与目标群体</h2>
+                          </div>
+                        </div>
+
+                        <div class="launch-form-grid">
+                          <el-form-item label="立项指南" prop="batch_guide_file">
+                            <div class="launch-guide-file office-guide-file-view">
+                              <span class="launch-guide-file-icon">
+                                <el-icon><Document /></el-icon>
+                              </span>
+                              <span class="launch-guide-file-name">
+                                {{ officeGuideBatch?.batch_guide_file?.name ?? '立项指南.pdf' }}
+                              </span>
+                              <span class="office-guide-file-meta">
+                                PMO 上传 · {{ officeGuideBatch?.batch_guide_file?.size ?? '—' }}
+                              </span>
+                              <el-button type="primary" link @click.stop="previewOfficeGuideFile">
+                                预览
+                              </el-button>
+                            </div>
+                          </el-form-item>
+
+                          <el-form-item label="目标群体" prop="target_groups">
+                            <el-select
+                              v-model="launchForm.target_groups"
+                              multiple
+                              collapse-tags
+                              collapse-tags-tooltip
+                              placeholder="请选择目标组织或人员群体"
+                            >
+                              <el-option
+                                v-for="group in launchTargetGroupOptions"
+                                :key="group"
+                                :label="group"
+                                :value="group"
+                              />
+                            </el-select>
+                            <template #error="{ error }">
+                              <span class="launch-form-error">{{ error }}</span>
+                            </template>
+                          </el-form-item>
+                        </div>
+                      </section>
+
+                      <footer class="launch-form-footer">
+                        <el-button @click="handleCancelLaunchInitiation">取消</el-button>
+                        <el-button type="danger" plain @click="handleOfficeGuideReject">驳回</el-button>
+                        <el-button type="primary" @click="handleOfficeGuideApprove">通过</el-button>
+                      </footer>
+                    </el-form>
+
+                    <el-dialog
+                      v-model="launchGuidePreviewVisible"
+                      append-to-body
+                      class="launch-guide-preview-dialog"
+                      destroy-on-close
+                      title="立项指南 PDF 预览"
+                      width="72vw"
+                      top="6vh"
+                      @closed="revokeLaunchGuidePreviewUrl"
+                    >
+                      <div class="launch-guide-preview-body">
+                        <iframe
+                          v-if="launchGuidePreviewUrl"
+                          class="launch-guide-preview-frame"
+                          :src="launchGuidePreviewUrl"
+                          title="立项指南 PDF 预览"
+                        ></iframe>
+                        <el-empty v-else description="暂无可预览文件" />
+                      </div>
+
+                      <template #footer>
+                        <el-button @click="closeLaunchGuidePreview">关闭</el-button>
+                      </template>
+                    </el-dialog>
+                  </section>
+                </section>
+              </template>
+              <section
+                v-else-if="officeActiveStage === 'formal'"
+                class="office-guide-form-wrap"
+                aria-label="形式审查"
+              >
+                <div class="office-stage-standby">
+                  <span class="office-stage-standby-tag">形式审查待启动</span>
+                  <span>立项指南发布已审批通过，形式审查任务待启动分配</span>
+                </div>
+                <InitiationDeclarationReview hide-flow-strip />
+              </section>
+              <section
+                v-else-if="officeActiveStage === 'final'"
+                class="final-review-page office-guide-form-wrap"
+                aria-label="学部评审结果报告（只读）"
+              >
+<header class="formal-report-head">
+                      <div>
+                        <h2>评审结果报告</h2>
+                        <p>{{ finalReviewReport.kicker }}</p>
+                      </div>
+                      <el-tag type="success" effect="light">{{ finalReviewReport.statusTag }}</el-tag>
+                    </header>
+
+                    <section class="formal-report-section">
+                      <h3>评审基本信息</h3>
+                      <el-descriptions :column="2" border>
+                        <el-descriptions-item
+                          v-for="item in finalReviewReport.info"
+                          :key="item.label"
+                          :label="item.label"
+                        >
+                          {{ item.value }}
+                        </el-descriptions-item>
+                      </el-descriptions>
+                    </section>
+
+                    <section class="formal-report-section">
+                      <h3>结论概览</h3>
+                      <div class="formal-report-summary">
+                        <article>
+                          <span>申报项目</span>
+                          <strong>{{ finalReviewReport.overview.declared }}</strong>
+                        </article>
+                        <article>
+                          <span>拟推荐进入复审</span>
+                          <strong>{{ finalReviewReport.overview.recommended }}</strong>
+                        </article>
+                        <article>
+                          <span>平均分</span>
+                          <strong>{{ finalReviewReport.overview.average }}</strong>
+                        </article>
+                        <article>
+                          <span>最高分</span>
+                          <strong>{{ finalReviewReport.overview.highest }}</strong>
+                        </article>
+                      </div>
+                    </section>
+
+                    <section class="formal-report-section">
+                      <h3>学部初审结果汇总表</h3>
+                      <p class="final-weight-note">{{ finalReviewReport.weightNote }}</p>
+                                            <el-table
+                        ref="finalSummaryTableRef"
+                        class="final-summary-table"
+                        :data="finalReviewRows"
+                        border
+                        row-key="seq"
+                        @selection-change="handleFinalSelectionChange"
+                      >
+                        <el-table-column prop="seq" label="推荐次序" width="88" align="center" />
+                        <el-table-column prop="projectName" label="项目名称" min-width="240" show-overflow-tooltip />
+                        <el-table-column prop="leader" label="项目负责人" width="96" />
+                        <el-table-column prop="subDirection" label="所属子方向" width="100" />
+                        <el-table-column label="评分结果" width="120" align="center">
+                          <template #default="{ row }">
+                            <div class="final-score-cell">
+                              <strong>{{ row.score }}</strong>
+                              <span>Z={{ row.zScore }}</span>
+                            </div>
+                          </template>
+                        </el-table-column>
+                        <el-table-column label="战略相关标注" width="112" align="center">
+                          <template #default="{ row }">
+                            <span class="strategic-star" :class="{ 'is-active': row.strategicStar }">战略相关</span>
+                          </template>
+                        </el-table-column>
+                        <el-table-column prop="majorProject" label="对应计划申请的外部重大项目（学部战略牵引）" min-width="300" />
+                        <el-table-column prop="reviewComment" label="具体评审意见" min-width="260" />
+                        <el-table-column label="调整名次" width="88" align="center">
+                          <template #default="{ row }">
+                            <span
+                              class="rank-change"
+                              :class="row.rankChange === 'up' ? 'is-up' : row.rankChange === 'down' ? 'is-down' : ''"
+                            >
+                              {{ row.rankChange === 'up' ? '上升' : row.rankChange === 'down' ? '下降' : '-' }}
+                            </span>
+                          </template>
+                        </el-table-column>
+                        <el-table-column label="是否推荐立项" width="110" align="center">
+                          <template #default="{ row }">
+                            <el-tag :type="row.recommended ? 'success' : 'danger'" effect="light">
+                              {{ row.recommended ? '推荐' : '不推荐' }}
+                            </el-tag>
+                          </template>
+                        </el-table-column>
+                        
+                      </el-table>
+                    </section>
+
+                    <section class="formal-report-section">
+                      <h3>学部总体评语</h3>
+                      <p class="final-overall-comment">{{ finalReviewReport.overallComment1 }}</p>
+                      <p class="final-overall-comment">{{ finalReviewReport.overallComment2 }}</p>
+                    </section>
+              </section>
+<section
+                v-else-if="officeActiveStage === 'recheck'"
+                class="office-guide-form-wrap recheck-stage-wrap"
+                aria-label="复审阶段"
+              >
+                <nav class="recheck-sub-steps" aria-label="复审子步骤">
+                  <button
+                    type="button"
+                    class="recheck-sub-step"
+                    :class="{ active: officeRecheckSubStep === 'expert' }"
+                    @click="selectOfficeRecheckSubStep('expert')"
+                  >
+                    <span class="recheck-sub-index">1</span>
+                    <span class="recheck-sub-label">专家评委审核</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="recheck-sub-step"
+                    :class="{ active: officeRecheckSubStep === 'pptReview' }"
+                    @click="selectOfficeRecheckSubStep('pptReview')"
+                  >
+                    <span class="recheck-sub-index">2</span>
+                    <span class="recheck-sub-label">形式审查（答辩PPT材料复审）</span>
+                  </button>
+                </nav>
+
+                <template v-if="officeRecheckSubStep === 'expert'">
+                  <section class="subdirection-assign-page">
+                    <ReviewerAssignmentPanel />
+                  </section>
+                </template>
+
+                <template v-else>
+                  <section class="recheck-ppt-review" aria-label="答辩PPT材料复审">
+                    <header class="review-page-head">
+                      <div>
+                        <h1>形式审查・答辩PPT材料复审</h1>
+                        <p class="review-batch-hint">
+                          复审必收材料：各申报项目答辩 PPT（≤100MB），逐项核验材料完整性。
+                        </p>
+                      </div>
+                    </header>
+                    <el-table :data="recheckPptRows" border>
+                      <el-table-column prop="projectName" label="项目名称" min-width="220" />
+                      <el-table-column prop="leader" label="项目负责人" width="100" align="center" />
+                      <el-table-column prop="pptFile" label="答辩PPT材料" min-width="180" />
+                      <el-table-column prop="fileSize" label="材料大小" width="90" align="center" />
+                      <el-table-column prop="submitTime" label="提交时间" width="150" align="center" />
+                      <el-table-column label="材料复审结论" width="150" align="center">
+                        <template #default="{ row }">
+                          <el-select
+                            v-if="!row.conclusion"
+                            :model-value="row.conclusion"
+                            size="small"
+                            class="review-result-select"
+                            placeholder="待复审"
+                            aria-label="材料复审结论"
+                            @change="handleRecheckPptConclusion(row, $event)"
+                          >
+                            <el-option label="通过" value="通过" />
+                            <el-option label="不通过" value="不通过" />
+                          </el-select>
+                          <el-tooltip
+                            v-else-if="row.conclusion === '不通过'"
+                            :content="row.reason || '未填写不通过理由'"
+                            placement="top"
+                          >
+                            <el-tag type="danger" effect="light">不通过</el-tag>
+                          </el-tooltip>
+                          <el-tag v-else type="success" effect="light">通过</el-tag>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="操作" width="110" align="center" fixed="right">
+                        <template #default>
+                          <el-button link type="primary" @click="openRecheckPptPreview">预览</el-button>
+                        </template>
+                      </el-table-column>
+                    </el-table>
+                  </section>
+                </template>
+
+                <el-dialog
+                  v-model="recheckPptPreviewVisible"
+                  append-to-body
+                  class="launch-guide-preview-dialog"
+                  destroy-on-close
+                  title="答辩 PPT 材料预览"
+                  width="72vw"
+                  top="6vh"
+                >
+                  <div class="launch-guide-preview-body">
+                    <iframe
+                      class="launch-guide-preview-frame"
+                      :src="recheckPptUrl"
+                      title="答辩 PPT 材料预览"
+                    ></iframe>
+                  </div>
+                  <template #footer>
+                    <el-button @click="recheckPptPreviewVisible = false">关闭</el-button>
+                  </template>
+                </el-dialog>
+              </section>
+
+<section
+                v-else-if="officeActiveStage === 'archive'"
+                class="recheck-ppt-review"
+                aria-label="立项入库"
+              >
+                <header class="review-page-head">
+                  <div>
+                    <h1>立项入库・项目列表</h1>
+                    <p class="review-batch-hint">
+                      学部复审推荐名单如下，管理办负责人审定通过后项目正式立项入库。
+                    </p>
+                  </div>
+                </header>
+                <el-table :data="officeArchiveRows" border>
+                  <el-table-column type="index" label="序号" width="60" align="center" />
+                  <el-table-column prop="projectName" label="项目名称" min-width="240" />
+                  <el-table-column prop="leader" label="项目负责人" width="100" align="center" />
+                  <el-table-column prop="subDirection" label="所属子方向" width="120" align="center" />
+                  <el-table-column prop="score" label="评审得分" width="90" align="center" />
+                  <el-table-column label="战略相关" width="96" align="center">
+                    <template #default="{ row }">
+                      <span
+                        class="strategic-star"
+                        :class="{ 'is-active': row.strategic }"
+                      >战略相关</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="batchCode" label="所属批次" width="130" align="center" />
+                  <el-table-column label="入库状态" width="100" align="center" fixed="right">
+                    <template #default>
+                      <el-tag type="warning" effect="light">待审定</el-tag>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </section>
+
+              <section v-else class="formal-report-section">
+                <h3>审批内容</h3>
+                <el-empty description="功能建设中（原型占位）" />
+              </section>
+
+              <!-- AN-MWVJNSJU：删除「上一环节/下一环节」导航按钮；AN-MWVIO2Y9：立项指南审批的操作在内嵌表单页脚，guide 阶段不再渲染外层页脚 -->
+              <footer v-if="officeActiveStage !== 'guide'" class="formal-report-actions">
+                <!-- AN-MWVFLWS6：形式审查结论已由行内下拉逐项确定，页脚只保留提交动作，生成形式审查报告并流转 -->
+                <el-button
+                  v-if="officeActiveStage === 'formal'"
+                  type="primary"
+                  @click="handleSubmitFormalReport"
+                >
+                  提交并生成形式审查报告
+                </el-button>
+                <!-- AN-MWVIPNLL：答辩PPT材料复审结论已由行内下拉逐项确定，页脚只保留提交动作，全部定完方可流转 -->
+                <el-button
+                  v-else-if="officeActiveStage === 'recheck'"
+                  type="primary"
+                  @click="handleSubmitRecheckResult"
+                >
+                  提交复审结果
+                </el-button>
+                <template v-else>
+                  <el-button type="danger" plain @click="handleOfficeGuideReject">驳回</el-button>
+                  <el-button type="primary" @click="handleOfficeGuideApprove">通过</el-button>
+                </template>
+              </footer>
+              </template>
+
+              <section v-else class="office-batch-pick" aria-label="选择立项批次">
+                <header class="office-batch-pick-head">
+                  <div>
+                    <h1>项目审批 · 选择批次</h1>
+                    <p>选择需要审批的立项批次，进入五阶段审批流程</p>
+                  </div>
+                </header>
+
+                <section class="initiation-batch-grid" aria-label="审批批次列表">
+                  <article
+                    v-for="batch in initiationBatchMockRows"
+                    :key="batch.id"
+                    class="initiation-batch-card"
+                    :class="getBatchCardClass(batch)"
+                  >
+                    <div class="batch-quarter-badge">
+                      <strong>{{ batch.year }}</strong>
+                      <span>第 {{ batch.quarter }} 季度</span>
+                    </div>
+
+                    <div class="batch-main-block">
+                      <header class="batch-card-header">
+                        <div class="batch-title-block">
+                          <el-tooltip :content="batch.batchName" placement="top" :show-after="300">
+                            <h2>{{ batch.batchName }}</h2>
+                          </el-tooltip>
+                          <p>批次编号：{{ batch.batchCode }}</p>
+                        </div>
+                      </header>
+
+                      <div class="batch-progress-row" :class="{ finished: batch.status === '已结束' }">
+                        <span>立项进度</span>
+                        <div
+                          class="batch-progress-track"
+                          :class="{ finished: batch.status === '已结束' }"
+                          :aria-label="`立项进度 ${getBatchProgressValue(batch)}%`"
+                        >
+                          <span class="batch-progress-fill" :style="getBatchProgressStyle(batch)"></span>
+                        </div>
+                        <strong>{{ getBatchProgressValue(batch) }}%</strong>
+                      </div>
+                    </div>
+
+                    <div class="batch-row-meta">
+                      <div>
+                        <span>项目类别</span>
+                        <strong>{{ batch.project_category }}</strong>
+                      </div>
+                      <div>
+                        <span>申报周期</span>
+                        <strong>{{ batch.applyPeriod }}</strong>
+                      </div>
+                      <div>
+                        <span>已提交项目</span>
+                        <strong>{{ batch.submittedProjectCount }}</strong>
+                      </div>
+                    </div>
+
+                    <div class="batch-row-status">
+                      <el-tag
+                        v-if="batch.flowStage && batch.status !== '已结束'"
+                        size="small"
+                        effect="plain"
+                        type="warning"
+                      >
+                        {{ getBatchFlowStageLabel(batch) }}
+                      </el-tag>
+                      <span v-else :class="getBatchStatusClass(batch)">{{ batch.status }}</span>
+                    </div>
+
+                    <footer class="batch-card-footer">
+                      <el-button
+                        class="batch-detail-button"
+                        :type="batch.status === '申报中' ? 'primary' : 'default'"
+                        @click="enterOfficeBatchApproval(batch)"
+                      >
+                        进入审批
+                        <span aria-hidden="true">›</span>
+                      </el-button>
+                    </footer>
+                  </article>
+
+                  <el-empty
+                    v-if="initiationBatchMockRows.length === 0"
+                    class="batch-empty"
+                    description="暂无可审批的立项批次"
+                  />
+                </section>
+              </section>
+            </section>
+
             <ProjectMemberMyProjects
               v-else-if="isProjectMemberMyProjectsFeature"
               :current-user="currentUser"
@@ -5946,6 +9171,18 @@ function resolveLandingCardIcon(title: string) {
             <ProjectMemberProjectDetail
               v-else-if="isProjectMemberMyProjectDetailFeature"
               :current-user="currentUser"
+            />
+
+            <ProjectApplicationProjects
+              v-else-if="isProjectApplicationProjectsFeature"
+              :current-user="currentUser"
+            />
+
+            <ProjectMemberProjectDetail
+              v-else-if="isProjectApplicationProjectDetailFeature"
+              :current-user="currentUser"
+              back-path="/project-member/application-projects"
+              hide-commitment
             />
 
             <AdminProjectRecruitmentOverview v-else-if="isAdminProjectRecruitmentOverviewFeature" />
@@ -6002,6 +9239,10 @@ function resolveLandingCardIcon(title: string) {
             <ProjectLibraryLedger v-else-if="isProjectLibraryFeature" />
 
             <OwnerMonitorProgress v-else-if="isProgressMonitoringFeature" />
+
+            <MyReviewTasks v-else-if="isReviewerProjectReviewFeature" />
+
+            <ReviewTaskDetail v-else-if="isReviewerProjectReviewDetailFeature" />
 
             <KyownerReviewProjects v-else-if="isKyownerProjectReviewFeature" />
 
@@ -6293,6 +9534,20 @@ function resolveLandingCardIcon(title: string) {
   background: rgba(255, 255, 255, 0.72);
   box-shadow: 0 8px 22px rgba(26, 39, 68, 0.04);
   backdrop-filter: blur(18px);
+}
+
+/* AN-MWUF20S9：面包屑 action 项（如批次流转线「立项管理」）可点击返回，视觉与可跳转项一致 */
+.workspace-breadcrumb :deep(.breadcrumb-action-item) {
+  cursor: pointer;
+}
+
+.workspace-breadcrumb :deep(.breadcrumb-action-item .el-breadcrumb__inner) {
+  color: #0071e3;
+  font-weight: 600;
+}
+
+.workspace-breadcrumb :deep(.breadcrumb-action-item .el-breadcrumb__inner:hover) {
+  text-decoration: underline;
 }
 
 .workspace-breadcrumb :deep(.el-breadcrumb__inner) {
@@ -8324,64 +11579,6 @@ button.standard-feature-button {
   margin-left: 0;
 }
 
-.initiation-process-flow {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 0;
-  margin-top: 14px;
-  padding: 16px 18px;
-  border: 1px solid var(--line);
-  border-radius: 15px;
-  background: #ffffff;
-  box-shadow: 0 8px 24px rgba(37, 68, 116, 0.05);
-}
-
-.initiation-process-flow article {
-  position: relative;
-  min-width: 0;
-  display: grid;
-  justify-items: center;
-  gap: 7px;
-  text-align: center;
-}
-
-.initiation-process-flow article:not(:last-child)::after {
-  position: absolute;
-  top: 15px;
-  left: 56%;
-  right: -44%;
-  height: 2px;
-  border-radius: 999px;
-  background: #dce7f5;
-  content: '';
-}
-
-.initiation-process-flow strong {
-  position: relative;
-  z-index: 1;
-  width: 31px;
-  height: 31px;
-  display: grid;
-  place-items: center;
-  border: 1px solid #d7e7ff;
-  border-radius: 50%;
-  color: #3478e5;
-  background: #eaf3ff;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.initiation-process-flow span {
-  max-width: 100%;
-  overflow: hidden;
-  color: #243955;
-  font-size: 13px;
-  font-weight: 760;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .initiation-batch-filter-panel {
   margin-top: 16px;
   padding: 16px 20px;
@@ -8621,8 +11818,10 @@ button.standard-feature-button {
 
 .batch-row-meta {
   display: grid;
-  grid-template-columns: minmax(170px, 1.4fr) minmax(72px, 0.6fr) minmax(72px, 0.6fr);
-  gap: 18px;
+  /* AN-MWVFHXNP：申报周期（2026.11.01-2026.12.20 长）与已提交项目重叠——
+     4 列定义容纳 PMO/管理办的 4 项 meta，周期列加宽、字号降为正文尺寸 */
+  grid-template-columns: minmax(150px, 1.3fr) minmax(118px, 1fr) minmax(64px, 0.5fr) minmax(64px, 0.5fr);
+  gap: 12px 14px;
   min-width: 0;
   align-items: center;
   padding-left: 20px;
@@ -8661,7 +11860,19 @@ button.standard-feature-button {
   text-overflow: ellipsis;
 }
 
-.batch-row-meta div:nth-child(3) strong {
+/* AN-MWVFHXNP：申报周期为长日期串，18px 必然溢出叠到相邻列——降为正文尺寸并省略兜底 */
+.batch-row-meta div:nth-child(2) strong {
+  overflow: hidden;
+  color: #203452;
+  font-size: 12.5px;
+  font-weight: 650;
+  letter-spacing: -0.2px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+}
+
+.batch-row-meta div:nth-child(3) strong,
+.batch-row-meta div:nth-child(4) strong {
   color: #16835d;
 }
 
@@ -9333,6 +12544,116 @@ button.standard-feature-button {
   background: #edf1f7;
 }
 
+.launch-inline-form-item :deep(.el-form-item__label) {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  margin-bottom: 0;
+  justify-self: start;
+  align-self: center;
+  white-space: nowrap;
+}
+
+.launch-inline-form-item :deep(.el-form-item__content) {
+  align-self: center;
+}
+
+.launch-inline-form-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.launch-inline-form-item :deep(.el-form-item__content) {
+  flex: 1;
+  margin-left: 0 !important;
+}
+
+.launch-richtext-shell {
+  width: 100%;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.launch-richtext-shell:focus-within {
+  border-color: #a0c4ff;
+}
+
+.launch-richtext-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 10px;
+  border-bottom: 1px solid #e4e9f2;
+  background: #f7f9fc;
+}
+
+.launch-richtext-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.launch-richtext-btn {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #5d6b7f;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.launch-richtext-btn:hover {
+  background: #e8edf5;
+  color: #1f2d3d;
+}
+
+.launch-richtext-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: #d5dce8;
+}
+
+.launch-richtext-count {
+  margin-left: auto;
+  color: #a0aab9;
+  font-size: 12px;
+}
+
+.launch-richtext-editor {
+  min-height: 96px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #1f2d3d;
+  outline: none;
+  background: #fff;
+}
+
+.launch-richtext-editor:empty::before {
+  content: attr(data-placeholder);
+  color: #c0c6d0;
+}
+
+.launch-budget-mode-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.launch-budget-mode-field .el-select {
+  flex: 1;
+  min-width: 0;
+}
+
 .launch-guide-upload-shell {
   width: 100%;
 }
@@ -9384,6 +12705,157 @@ button.standard-feature-button {
   color: #344159;
   font-size: 13px;
   font-weight: 700;
+}
+
+.office-batch-context {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  border: 1px solid #e5eaf3;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.office-batch-context-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-initiation-flow-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.admin-initiation-guide-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+/* AN-MWUF2MQ8：立项指南发布批次全字段表 */
+.admin-guide-field-grid {
+  margin-top: 14px;
+}
+
+.admin-guide-field-grid :deep(.el-descriptions__label) {
+  width: 118px;
+  color: #8492a6;
+  font-weight: 600;
+}
+
+.admin-guide-field-grid + .launch-form-grid {
+  margin-top: 16px;
+}
+
+.office-batch-context-main h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2d3d;
+}
+
+.office-batch-context-main p {
+  margin: 0;
+  font-size: 12.5px;
+  color: #8492a6;
+}
+
+.office-batch-pick-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.office-batch-pick-head h1 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2d3d;
+}
+
+.office-batch-pick-head p {
+  margin: 0;
+  font-size: 13px;
+  color: #8492a6;
+}
+
+.office-stage-standby {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  border: 1px dashed #a0cfff;
+  border-radius: 10px;
+  background: rgba(236, 245, 255, 0.7);
+  color: #344159;
+  font-size: 13px;
+}
+
+.office-stage-standby-tag {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #409eff;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.office-status-pill--rejected {
+  background: #fef0f0 !important;
+  color: #f56c6c !important;
+  border-color: #fbc4c4 !important;
+}
+
+.office-reject-note {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border: 1px solid #fbc4c4;
+  border-radius: 8px;
+  background: #fef0f0;
+  color: #c45656;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.launch-reject-banner {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding: 12px 16px;
+  border: 1px solid #fbc4c4;
+  border-radius: 10px;
+  background: #fef0f0;
+  color: #c45656;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.launch-reject-banner strong {
+  font-size: 14px;
+}
+
+.launch-reject-banner em {
+  font-style: normal;
+  color: #909399;
+}
+
+.office-guide-file-view {
+  width: 100%;
+}
+
+.office-guide-file-meta {
+  color: #909399;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .launch-guide-file {
@@ -9618,6 +13090,107 @@ button.standard-feature-button {
 
 .approval-table-actions {
   flex-wrap: nowrap;
+}
+
+.subdirection-assign-page {
+  min-width: 0;
+}
+
+.formal-report-page {
+  display: grid;
+  gap: 18px;
+  padding: 6px 0 18px;
+}
+
+
+
+.formal-report-body {
+  display: grid;
+  gap: 18px;
+}
+
+.formal-report-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #e3ecf7;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.formal-report-head h2 {
+  margin: 0 0 6px;
+  color: #152b4f;
+  font-size: 17px;
+}
+
+.formal-report-head p {
+  margin: 0 0 6px;
+  color: #5f6f86;
+  font-size: 13px;
+}
+
+.formal-report-version {
+  color: #237a4e;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.formal-report-section {
+  display: grid;
+  gap: 10px;
+}
+
+.formal-report-section h3 {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 3px solid #3478e5;
+  color: #152b4f;
+  font-size: 14px;
+}
+
+/* AN-MWVFRNN7/S94C：学部复审报告/立项入库页的报告说明条 */
+.formal-report-note {
+  margin: 4px 0 0;
+  padding: 9px 12px;
+  border-radius: 6px;
+  background: #f5f8fd;
+  color: #5b6f8d;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.formal-report-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.formal-report-summary article {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid #e3ecf7;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.formal-report-summary span {
+  color: #7b8ba4;
+  font-size: 12px;
+}
+
+.formal-report-summary strong {
+  color: #152b4f;
+  font-size: 15px;
+}
+
+.formal-report-summary em {
+  color: #98a6bb;
+  font-size: 12px;
+  font-style: normal;
 }
 
 .approval-dialog-body {
@@ -10531,7 +14104,8 @@ button.function-card {
 
   .batch-row-meta {
     grid-column: 2 / -1;
-    grid-template-columns: minmax(190px, 1.4fr) minmax(80px, 0.6fr) minmax(80px, 0.6fr);
+    grid-template-columns: minmax(140px, 1.2fr) minmax(104px, 1fr) minmax(60px, 0.5fr) minmax(60px, 0.5fr);
+    gap: 12px;
     padding: 14px 0 0;
     border-top: 1px solid #edf1f7;
     border-left: 0;
@@ -10632,15 +14206,6 @@ button.function-card {
 
   .admin-batch-panel {
     min-width: 300px;
-  }
-
-  .initiation-process-flow {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    row-gap: 16px;
-  }
-
-  .initiation-process-flow article::after {
-    display: none;
   }
 
   .admin-tool-list {
@@ -11148,5 +14713,602 @@ button.function-card {
   .leader-batch-card {
     transition: none;
   }
+}
+.approval-flow-steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 18px;
+  padding: 14px 18px;
+  border: 1px solid #e7eaf0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.approval-flow-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.approval-flow-step:not(:last-child)::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  margin: 0 10px;
+  background: #dfe4ec;
+}
+
+.approval-flow-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: 1px solid #dfe4ec;
+  border-radius: 50%;
+  background: #f7f9fc;
+  color: #98a2b3;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.approval-flow-label {
+  color: #98a2b3;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.approval-flow-step.done .approval-flow-index {
+  border-color: #b7d8c5;
+  background: #e9f5ee;
+  color: #237a4e;
+}
+
+.approval-flow-step.done .approval-flow-label {
+  color: #237a4e;
+}
+
+.approval-flow-step.active .approval-flow-index {
+  border-color: #2f6f4f;
+  background: #237a4e;
+  color: #ffffff;
+}
+
+.approval-flow-step.active .approval-flow-label {
+  color: #1d5b3f;
+  font-weight: 780;
+}
+
+.batch-stage-select-panel {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+  padding: 26px;
+  border: 1px solid #e7eaf0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.batch-stage-select-head h2 {
+  margin: 0;
+  color: #273142;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.batch-stage-select-head p {
+  margin: 6px 0 0;
+  color: #8a93a6;
+  font-size: 13px;
+}
+
+.batch-stage-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.batch-stage-card {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 20px;
+  border: 1px solid #e7eaf0;
+  border-radius: 8px;
+  background: #fcfdff;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.batch-stage-card:hover {
+  border-color: #b9c6da;
+  box-shadow: 0 2px 10px rgba(38, 58, 90, 0.08);
+}
+
+.batch-stage-card h3 {
+  margin: 0;
+  color: #273142;
+  font-size: 16px;
+  font-weight: 780;
+}
+
+.batch-stage-card p {
+  margin: 0;
+  color: #8a93a6;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.batch-stage-card > span {
+  color: #2f6f4f;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.batch-stage-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.formal-report-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.final-review-page {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  padding: 26px;
+  border: 1px solid #e7eaf0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.final-review-page > .approval-flow-steps {
+  margin-bottom: 14px;
+}
+
+.final-review-page > .final-sub-steps {
+  margin-bottom: 18px;
+}
+
+.final-assign-intro {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border: 1px solid #e5eaf3;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.final-assign-intro h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2d3d;
+}
+
+.final-assign-intro p {
+  margin: 0;
+  color: #6b7688;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.final-weight-note {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-left: 3px solid #c8d4e4;
+  background: #f7f9fc;
+  color: #6b7688;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.final-batch-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.final-batch-actions > span {
+  color: #8a93a6;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.final-score-cell {
+  display: grid;
+  gap: 2px;
+}
+
+.final-score-cell strong {
+  color: #273142;
+  font-size: 13px;
+  font-weight: 780;
+}
+
+.final-score-cell span {
+  color: #8a93a6;
+  font-size: 12px;
+}
+
+.final-overall-comment {
+  margin: 0 0 10px;
+  color: #57606f;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+/* AN-MWUFAJRV：推荐汇总表行内编辑样式 */
+.final-rank-input {
+  width: 72px;
+}
+
+.final-summary-table--editable :deep(.el-input__inner),
+.final-summary-table--editable :deep(.el-textarea__inner) {
+  font-size: 12px;
+}
+
+.final-row-move-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* AN-MWUG2PQ5/AN-MWUG3BER：PMO 初审阶段（三学部汇总）与复审阶段（指派+监控）样式 */
+.pmo-stage-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.pmo-stage-head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.pmo-stage-head p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #8492a6;
+}
+
+.pmo-stage-head-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pmo-final-faculty-tabs :deep(.el-tabs__header) {
+  margin-bottom: 10px;
+}
+
+.pmo-final-faculty-tab-count {
+  margin-left: 4px;
+  font-size: 11px;
+  color: #67c23a;
+}
+
+.pmo-final-faculty-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #606266;
+}
+
+.pmo-final-score-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.3;
+}
+
+.pmo-final-score {
+  font-size: 13px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.pmo-final-zscore {
+  font-size: 11px;
+  color: #8492a6;
+}
+
+.pmo-final-muted {
+  color: #c0c4cc;
+}
+
+.pmo-recheck-intro {
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: #f4f4f5;
+  font-size: 12px;
+  color: #606266;
+}
+
+.pmo-recheck-reviewer-tags {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.pmo-recheck-progress-text {
+  margin-top: 2px;
+  font-size: 11px;
+  color: #8492a6;
+}
+
+/* 学部复议登记对话框 */
+.pmo-recheck-dialog-tip {
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: #fdf6ec;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #b88230;
+}
+
+.final-project-link {
+  font-weight: 650;
+}
+
+.pmo-recheck-register-list {
+  max-height: 340px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+
+.pmo-recheck-register-group + .pmo-recheck-register-group {
+  margin-top: 8px;
+}
+
+.pmo-recheck-register-group h4 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.pmo-recheck-register-group .el-checkbox {
+  display: flex;
+  width: 100%;
+  height: auto;
+  margin-right: 0;
+}
+
+.pmo-recheck-register-group :deep(.el-checkbox__label) {
+  white-space: normal;
+  line-height: 1.5;
+  font-size: 12px;
+}
+
+.final-review-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 16px;
+  border-top: 1px solid #edf0f4;
+  margin-top: 4px;
+}
+
+.final-review-sign {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.final-review-sign span {
+  color: #6b7688;
+  font-size: 13px;
+  font-weight: 600;
+}
+.faculty-recommend-report-dialog :deep(.el-dialog__body) {
+  max-height: 74vh;
+  overflow-y: auto;
+}
+
+.faculty-report-signers {
+  margin: 6px 0 0;
+  color: #6b7688;
+  font-size: 13px;
+  font-weight: 600;
+}
+.recheck-sub-steps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 18px;
+}
+
+.recheck-sub-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border: 1px solid #d4e0f5;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #52627a;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.recheck-sub-step:hover {
+  border-color: #4b82e9;
+  color: #2f6ad9;
+}
+
+.recheck-sub-step.active {
+  border-color: #2f6ad9;
+  background: #2f6ad9;
+  color: #ffffff;
+}
+
+.recheck-sub-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(47, 106, 217, 0.1);
+  color: #2f6ad9;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.recheck-sub-step.active .recheck-sub-index {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.recheck-ppt-review {
+  background: #ffffff;
+  border: 1px solid #e3ebf7;
+  border-radius: 14px;
+  padding: 22px 24px;
+}
+
+.office-guide-form-wrap {
+  min-width: 0;
+}
+
+.office-approval-page {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  padding: 26px;
+  border: 1px solid #e7eaf0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.strategic-star {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 10px;
+  border: 1px solid #d5dae3;
+  border-radius: 14px;
+  background: #f4f6f9;
+  color: #9aa3b2;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.strategic-star.is-active {
+  border-color: #237a4e;
+  background: #eaf7f0;
+  color: #237a4e;
+  font-weight: 760;
+}
+
+.strategic-star:hover {
+  border-color: #237a4e;
+  color: #237a4e;
+}
+
+.final-row--draggable {
+  cursor: grab;
+}
+
+.final-row--draggable:active {
+  cursor: grabbing;
+}
+
+.rank-change {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f4f6f9;
+  color: #9aa3b2;
+}
+
+.rank-change.is-up {
+  background: #eaf7f0;
+  color: #237a4e;
+}
+
+.rank-change.is-down {
+  background: #fdeeee;
+  color: #c45656;
+}
+
+.approval-flow-step--clickable {
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.approval-flow-step--clickable:hover {
+  border-color: #409eff;
+  transform: translateY(-1px);
+}
+
+.approval-flow-step--clickable:active {
+  transform: translateY(0);
+}
+
+/* FD-MWVNYLE8：未流转环节不可跳转——禁用态置灰、去 hover 交互 */
+.approval-flow-step:disabled,
+.approval-flow-step.locked {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.approval-flow-step--clickable:disabled:hover,
+.approval-flow-step--clickable.locked:hover {
+  border-color: inherit;
+  transform: none;
+  box-shadow: none;
+}
+
+/* FD-MWU1XD2J：字段说明 ℹ 角标（hover 显示 title） */
+.field-doc-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 4px;
+  border-radius: 50%;
+  border: 1px solid var(--el-border-color);
+  color: var(--el-text-color-secondary);
+  font-size: 10px;
+  line-height: 1;
+  cursor: help;
+  vertical-align: middle;
+}
+
+.office-approval-page > .approval-flow-steps {
+  margin-bottom: 22px;
 }
 </style>

@@ -125,7 +125,7 @@ const receiverLabels = computed(() =>
     .map((option) => option.label),
 )
 
-const pageRoleName = computed(() => String(route.meta.roleName ?? '科研项目管理员'))
+const pageRoleName = computed(() => String(route.meta.roleName ?? 'PMO'))
 const isBaseDataAnnouncement = computed(() => route.meta.featureKey === 'base-announcement-publishing')
 
 const hasDraftContent = computed(() => {

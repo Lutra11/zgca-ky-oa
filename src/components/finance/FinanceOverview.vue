@@ -1501,7 +1501,7 @@ function rejectSettlement(row: FinanceSettlement) {
             <el-table-column label="项目" min-width="190" show-overflow-tooltip><template #default="{ row }">{{ getProjectName(row.projectId) }}</template></el-table-column>
             <el-table-column prop="currentNode" label="当前审批节点" min-width="140" />
             <el-table-column label="审批状态" width="110"><template #default="{ row }"><el-tag :type="tagTypeByStatus(row.approvalStatus)">{{ row.approvalStatus }}</el-tag></template></el-table-column>
-            <el-table-column label="操作" width="160"><template #default><el-button link type="primary" @click="openGenericDialog('预算审批流程', '发起人 → 科研财务管理员 → 方向负责人 → 学部负责人 → 科研部负责人 → 院领导')">查看流程</el-button></template></el-table-column>
+            <el-table-column label="操作" width="160"><template #default><el-button link type="primary" @click="openGenericDialog('预算审批流程', '发起人 → 科研财务管理员 → 方向负责人 → 学部负责人 → 管理办负责人 → 院领导')">查看流程</el-button></template></el-table-column>
           </el-table>
         </el-tab-pane>
         <el-tab-pane label="预算调整" name="adjustments">

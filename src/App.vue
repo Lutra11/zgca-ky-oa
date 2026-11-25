@@ -1,5 +1,26 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
+import { onMounted, onUnmounted } from 'vue'
+
+/* ---- 标注模式（F9，修改需求）+ 字段说明（F8，写字段文档）：仅开发环境挂载，工具条见页面右下角 ---- */
+let annotateCleanup: (() => void) | null = null
+let fielddocCleanup: (() => void) | null = null
+onMounted(async () => {
+  if (import.meta.env.DEV) {
+    const m = await import('./utils/annotate')
+    annotateCleanup = m.init()
+    // 控制台备用入口（正常流程不需要：右下角 📋 复制即可）
+    ;(window as any).__zgci = {
+      exportAnnots: () => { const s = m.exportAll(); console.log(s); try { void navigator.clipboard.writeText(s) } catch { /* ignore */ } return s },
+      listAnnots: () => console.table(m.listAll()),
+      clearAnnots: () => m.clearAll(),
+    }
+    const fd = await import('./utils/fielddoc')
+    fielddocCleanup = fd.init()
+    ;(window as any).__zgciFd = fd // fielddoc 自带 window.__zgciFd，这里保持引用便于排查
+  }
+})
+onUnmounted(() => { annotateCleanup?.(); annotateCleanup = null; fielddocCleanup?.(); fielddocCleanup = null })
 </script>
 
 <template>

@@ -35,7 +35,7 @@ export function updateApprovalStatus(
           ...approval,
           status,
           rejectReason: options.reason ?? approval.rejectReason,
-          approver: options.operator ?? '科研部负责人',
+          approver: options.operator ?? '管理办负责人',
           approvedAt: now,
         }
       : approval,

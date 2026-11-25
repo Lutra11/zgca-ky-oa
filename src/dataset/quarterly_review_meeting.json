@@ -34,7 +34,7 @@
         ]
       },
       "researchDepartmentLeader": {
-        "roleLabel": "科研部负责人",
+        "roleLabel": "管理办负责人",
         "summary": "负责审批评审申请、查看评审监控与确认结果流转。",
         "primaryAction": "查看评审项目",
         "primaryRoute": "/research-dept-leader/review-projects",

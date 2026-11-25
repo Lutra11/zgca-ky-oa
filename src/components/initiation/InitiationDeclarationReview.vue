@@ -6,6 +6,7 @@ import {
   Check,
   Close,
   DocumentChecked,
+  MagicStick,
   Search,
   View,
 } from '@element-plus/icons-vue'
@@ -29,17 +30,170 @@ interface DeclarationReviewRow extends InitiationProjectMockRow {
   batch?: InitiationBatchMockRow | null
 }
 
+interface AiDiagnosisRow {
+  code: string
+  projectName: string
+  identity: string
+  scope: string
+  quantity: string
+  libraryLink: string
+  opinion: string
+  hasIssue: boolean
+}
+
+const aiDiagnosisMockRows: AiDiagnosisRow[] = [
+  {
+    code: 'PMJ240401',
+    projectName: '多模态脑影像在阿尔茨海默病早期诊断中的应用研究',
+    identity: '符合（在职教研人员）',
+    scope: '符合（面向重点申报方向）',
+    quantity: '符合（在研项目未超限）',
+    libraryLink: '未发现与项目库重复申报',
+    opinion: 'AI 建议通过：申报人身份、申报范围、申报数量与项目库联动四项检查均符合要求。',
+    hasIssue: false,
+  },
+  {
+    code: 'PMJ240405',
+    projectName: '药物靶标识别深度挖掘与验证研究',
+    identity: '符合（在职教研人员）',
+    scope: '符合（面向重点申报方向）',
+    quantity: '超限（同名负责人在研项目已达上限）',
+    libraryLink: '未发现与项目库重复申报',
+    opinion: 'AI 建议退回修改：申报数量超限，请负责人核实在研项目数量后调整申报。其余三项检查符合要求。',
+    hasIssue: true,
+  },
+  {
+    code: 'PMJ240402',
+    projectName: '基于深度学习的量子材料力学性能预测方法研究',
+    identity: '符合（在职教研人员）',
+    scope: '符合（面向重点申报方向）',
+    quantity: '符合（在研项目未超限）',
+    libraryLink: '未发现与项目库重复申报',
+    opinion: 'AI 建议通过：四项形式审查要点均符合要求，可进入评审环节。',
+    hasIssue: false,
+  },
+  {
+    code: 'PMJ240403',
+    projectName: '肿瘤微环境调控机制研究',
+    identity: '符合（在职教研人员）',
+    scope: '偏离（子方向与批次指南不一致）',
+    quantity: '符合（在研项目未超限）',
+    libraryLink: '未发现与项目库重复申报',
+    opinion: 'AI 建议人工复核：申报范围与批次指南的子方向存在偏离，请形式审查人员确认是否受理。',
+    hasIssue: true,
+  },
+  {
+    code: 'PMJ240404',
+    projectName: '工业机器人精密装配控制方法',
+    identity: '符合（在职教研人员）',
+    scope: '符合（面向重点申报方向）',
+    quantity: '符合（在研项目未超限）',
+    libraryLink: '未发现与项目库重复申报',
+    opinion: 'AI 建议通过：申报人身份、申报范围、申报数量与项目库联动四项检查均符合要求。',
+    hasIssue: false,
+  },
+  {
+    code: 'PMJ240406',
+    projectName: '固态电池电解质界面优化研究',
+    identity: '符合（在职教研人员）',
+    scope: '符合（面向重点申报方向）',
+    quantity: '符合（在研项目未超限）',
+    libraryLink: '未发现与项目库重复申报',
+    opinion: 'AI 建议通过：四项形式审查要点均符合要求，可进入评审环节。',
+    hasIssue: false,
+  },
+  {
+    code: 'PMJ240407',
+    projectName: '医学知识图谱辅助诊断模型研究',
+    identity: '符合（在职教研人员）',
+    scope: '符合（面向重点申报方向）',
+    quantity: '符合（在研项目未超限）',
+    libraryLink: '重复（与项目库在研项目研究方向高度重叠）',
+    opinion: 'AI 建议人工复核：项目库联动检查发现与在研项目研究方向高度重叠，请形式审查人员核实是否重复申报。',
+    hasIssue: true,
+  },
+  {
+    code: 'PMJ240408',
+    projectName: '物理约束神经网络在复杂场景中的泛化研究',
+    identity: '符合（在职教研人员）',
+    scope: '符合（面向重点申报方向）',
+    quantity: '符合（在研项目未超限）',
+    libraryLink: '未发现与项目库重复申报',
+    opinion: 'AI 建议通过：四项形式审查要点均符合要求，可进入评审环节。',
+    hasIssue: false,
+  },
+  {
+    code: 'PMJ240409',
+    projectName: '细胞免疫应答多组学分析平台构建',
+    identity: '符合（在职教研人员）',
+    scope: '符合（面向重点申报方向）',
+    quantity: '符合（在研项目未超限）',
+    libraryLink: '未发现与项目库重复申报',
+    opinion: 'AI 建议通过：申报人身份、申报范围、申报数量与项目库联动四项检查均符合要求。',
+    hasIssue: false,
+  },
+  {
+    code: 'PMJ240410',
+    projectName: '高端制造设备状态感知与预测维护系统研究',
+    identity: '超龄（申报人年龄超出批次指南要求）',
+    scope: '符合（面向重点申报方向）',
+    quantity: '符合（在研项目未超限）',
+    libraryLink: '未发现与项目库重复申报',
+    opinion: 'AI 建议退回修改：申报人身份检查发现年龄超出批次指南要求，请核实后调整申报人或补充特批材料。',
+    hasIssue: true,
+  },
+]
+
+interface MachineCheckRow {
+  code: string
+  passed: boolean
+  note: string
+}
+
+const machineCheckMockRows: MachineCheckRow[] = [
+  { code: 'PMJ240401', passed: true, note: '机器校验通过：必填字段完整、编号格式正确、申报附件齐全。' },
+  { code: 'PMJ240402', passed: true, note: '机器校验通过：必填字段完整、编号格式正确、申报附件齐全。' },
+  { code: 'PMJ240403', passed: true, note: '机器校验通过：必填字段完整、编号格式正确、申报附件齐全。' },
+  { code: 'PMJ240404', passed: false, note: '机器校验不通过：缺少盖章版申报书扫描件，请退回申报人补齐材料。' },
+  { code: 'PMJ240405', passed: true, note: '机器校验通过：必填字段完整、编号格式正确、申报附件齐全。' },
+  { code: 'PMJ240406', passed: true, note: '机器校验通过：必填字段完整、编号格式正确、申报附件齐全。' },
+  { code: 'PMJ240407', passed: true, note: '机器校验通过：必填字段完整、编号格式正确、申报附件齐全。' },
+  { code: 'PMJ240408', passed: true, note: '机器校验通过：必填字段完整、编号格式正确、申报附件齐全。' },
+  { code: 'PMJ240409', passed: false, note: '机器校验不通过：劳务费预算占比 35%，超过批次指南规定的 30% 上限。' },
+  { code: 'PMJ240410', passed: false, note: '机器校验不通过：负责人联系电话未填写，必填字段缺失。' },
+]
+
+const declarationFlowSteps = [
+  '立项指南发布',
+  '形式审查',
+  '初审阶段',
+  '复审阶段',
+  '立项入库',
+] as const
+
 const STORAGE_KEY = 'zgca_ky_oa_initiation_declaration_review_state'
 
 const router = useRouter()
+const props = defineProps<{
+  initialBatchId?: string
+  /** 嵌入管理办负责人视角时隐藏组件内部流转线（外层已有） */
+  hideFlowStrip?: boolean
+}>()
+
+/** 原型要求：流转线各环节均可点击，点击通知父级跳转对应环节 */
+const emit = defineEmits<{
+  (e: 'flow-step', index: number): void
+}>()
+
 const keyword = shallowRef('')
-const batchFilter = shallowRef('all')
+const batchFilter = shallowRef<string>(props.initialBatchId ?? 'all')
 const statusFilter = shallowRef<ReviewStatus | 'all'>('all')
 const page = shallowRef(1)
 const pageSize = shallowRef(10)
 const selectedRows = shallowRef<DeclarationReviewRow[]>([])
 const tableRef = shallowRef<TableInstance>()
 const detailVisible = shallowRef(false)
+const detailActiveTab = shallowRef('application')
 const rejectVisible = shallowRef(false)
 const reviewStateMap = shallowRef<Record<string, DeclarationReviewState>>(loadReviewState())
 const activeRow = shallowRef<DeclarationReviewRow | null>(null)
@@ -57,15 +211,10 @@ const submittedProjects = computed<DeclarationReviewRow[]>(() =>
     })),
 )
 
-const batchOptions = computed(() =>
-  initiationBatchMockRows
-    .filter((batch) =>
-      submittedProjects.value.some((project) => project.year === batch.year && project.quarter === batch.quarter),
-    )
-    .map((batch) => ({
-      label: `${batch.batchName}（${batch.batchCode}）`,
-      value: batch.id,
-    })),
+// AN-MWUG1BOX：批次筛选下拉已删除，batchOptions 不再需要（批次上下文由 initialBatchId 锁定）
+
+const activeBatch = computed(
+  () => initiationBatchMockRows.find((batch) => batch.id === props.initialBatchId) ?? null,
 )
 
 const filteredRows = computed(() => {
@@ -105,6 +254,13 @@ watch([keyword, batchFilter, statusFilter], () => {
   page.value = 1
   selectedRows.value = []
 })
+
+watch(
+  () => props.initialBatchId,
+  (batchId) => {
+    batchFilter.value = batchId ?? 'all'
+  },
+)
 
 function loadReviewState() {
   try {
@@ -165,20 +321,12 @@ function getStatusTagType(status: ReviewStatus) {
   return 'warning'
 }
 
-function getNodeTagType(node: string) {
-  if (node === '已立项') {
-    return 'success'
-  }
+function getMachineCheck(project: DeclarationReviewRow) {
+  return machineCheckMockRows.find((row) => row.code === project.projectCode) ?? null
+}
 
-  if (node === '评审中') {
-    return 'primary'
-  }
-
-  if (node === '待确认立项' || node === '待配置评审') {
-    return 'warning'
-  }
-
-  return 'info'
+function getAiCheck(project: DeclarationReviewRow) {
+  return aiDiagnosisMockRows.find((row) => row.code === project.projectCode) ?? null
 }
 
 function getReviewProgress(project: DeclarationReviewRow) {
@@ -187,10 +335,6 @@ function getReviewProgress(project: DeclarationReviewRow) {
   }
 
   return `${project.reviewFinished}/${project.reviewTotal}`
-}
-
-function formatBatch(project: DeclarationReviewRow) {
-  return project.batch ? `${project.batch.batchName}（${project.batch.batchCode}）` : '未匹配批次'
 }
 
 function getApplicationDescription(project: DeclarationReviewRow) {
@@ -204,7 +348,7 @@ function updateProjectReviewState(projects: DeclarationReviewRow[], state: Decla
   projects.forEach((project) => {
     nextState[project.id] = {
       ...state,
-      operator: '科研项目管理员',
+      operator: 'PMO',
       reviewedAt,
     }
   })
@@ -212,8 +356,34 @@ function updateProjectReviewState(projects: DeclarationReviewRow[], state: Decla
   persistReviewState(nextState)
 }
 
+const activeAiDiagnosisRow = computed(
+  () => aiDiagnosisMockRows.find((row) => row.code === activeRow.value?.projectCode) ?? null,
+)
+
+const aiDiagnosisItems = computed(() => {
+  const row = activeAiDiagnosisRow.value
+
+  if (!row) {
+    return []
+  }
+
+  return [
+    { label: '单号', value: row.code, pass: true },
+    { label: '项目名称', value: row.projectName, pass: true },
+    { label: '①申报人身份', value: row.identity, pass: !isIssue(row.identity) },
+    { label: '②申报范围', value: row.scope, pass: !isIssue(row.scope) },
+    { label: '③申报数量', value: row.quantity, pass: !isIssue(row.quantity) },
+    { label: '④项目库联动', value: row.libraryLink, pass: !isIssue(row.libraryLink) },
+  ]
+})
+
+function isIssue(value: string) {
+  return value.includes('超限') || value.includes('偏离')
+}
+
 function openDetail(project: DeclarationReviewRow) {
   activeRow.value = project
+  detailActiveTab.value = 'application'
   detailVisible.value = true
 }
 
@@ -226,6 +396,17 @@ function openProjectDetail(project: DeclarationReviewRow) {
   }
 
   router.push(`/research-project-admin/initiation-batches/${batchId}/projects/${project.projectId}`)
+}
+
+/** AN-MWVFK53B：行内下拉二选一——选「通过」直接下结论，选「驳回」弹必填理由（取消则回退待审查） */
+function handleResultSelect(project: DeclarationReviewRow, status: ReviewStatus) {
+  if (status === '已通过') {
+    approveProject(project)
+    return
+  }
+  if (status === '已驳回') {
+    openReject(project)
+  }
 }
 
 function approveProject(project: DeclarationReviewRow) {
@@ -257,6 +438,36 @@ async function batchApprove() {
     selectedRows.value = []
     tableRef.value?.clearSelection()
     ElMessage.success(`已批量通过 ${rows.length} 个项目`)
+  } catch {
+    // 用户取消，不需要提示。
+  }
+}
+
+async function batchReject() {
+  const rows = selectedRows.value.filter((row) => canReview(row))
+
+  if (!rows.length) {
+    ElMessage.warning('请先选择待审查项目')
+    return
+  }
+
+  try {
+    const { value } = await ElMessageBox.prompt(
+      `确认驳回已选择的 ${rows.length} 个项目申报吗？请填写统一驳回理由（必填，项目负责人将据此修改申报材料）`,
+      '批量驳回确认',
+      {
+        confirmButtonText: '确认驳回',
+        cancelButtonText: '取消',
+        type: 'warning',
+        inputType: 'textarea',
+        inputPlaceholder: '请填写驳回理由',
+        inputValidator: (input: string) => (input && input.trim() ? true : '驳回理由不能为空'),
+      },
+    )
+    updateProjectReviewState(rows, { status: '已驳回', reason: value.trim() })
+    selectedRows.value = []
+    tableRef.value?.clearSelection()
+    ElMessage.success(`已批量驳回 ${rows.length} 个项目`)
   } catch {
     // 用户取消，不需要提示。
   }
@@ -323,10 +534,26 @@ function handleQuery() {
 
 <template>
   <section class="declaration-review-page" aria-label="申报审查">
+    <nav v-if="!hideFlowStrip" class="approval-flow-steps" aria-label="项目流转线">
+      <button
+        v-for="(step, index) in declarationFlowSteps"
+        :key="step"
+        class="approval-flow-step"
+        :class="{ active: index === 1, done: index < 1 }"
+        @click="emit('flow-step', index)"
+      >
+        <span class="approval-flow-index">{{ index + 1 }}</span>
+        <span class="approval-flow-label">{{ step }}</span>
+      </button>
+    </nav>
+
     <section class="declaration-review-card">
       <header class="review-page-head">
         <div>
           <h1>申报审查</h1>
+          <p v-if="activeBatch" class="review-batch-hint">
+            当前批次：{{ activeBatch.batchName }}（{{ activeBatch.batchCode }}）
+          </p>
         </div>
         <div class="review-head-actions">
           <el-button
@@ -336,6 +563,14 @@ function handleQuery() {
             @click="batchApprove"
           >
             批量通过
+          </el-button>
+          <el-button
+            type="danger"
+            :icon="Close"
+            :disabled="!selectedRows.filter((row) => canReview(row)).length"
+            @click="batchReject"
+          >
+            批量驳回
           </el-button>
         </div>
       </header>
@@ -348,11 +583,8 @@ function handleQuery() {
           :prefix-icon="Search"
           placeholder="搜索项目名称、编号、负责人、部门或批次"
         />
-        <el-select v-model="batchFilter" class="review-filter-select" aria-label="批次筛选">
-          <el-option label="全部批次" value="all" />
-          <el-option v-for="batch in batchOptions" :key="batch.value" :label="batch.label" :value="batch.value" />
-        </el-select>
-        <el-select v-model="statusFilter" class="review-filter-select small" aria-label="审查状态筛选">
+        <!-- AN-MWUG1BOX：批次筛选下拉删除——批次上下文由进入批次时确定（initialBatchId），行内不再重复筛选 -->
+        <el-select v-model="statusFilter" class="review-filter-select" aria-label="形式审查结果筛选">
           <el-option label="全部状态" value="all" />
           <el-option label="待审查" value="待审查" />
           <el-option label="已通过" value="已通过" />
@@ -385,9 +617,6 @@ function handleQuery() {
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="申报批次" min-width="250" show-overflow-tooltip>
-          <template #default="{ row }">{{ formatBatch(row) }}</template>
-        </el-table-column>
         <el-table-column label="负责人/部门" min-width="180" show-overflow-tooltip>
           <template #default="{ row }">
             <div class="review-person-cell">
@@ -396,41 +625,54 @@ function handleQuery() {
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="submitTime" label="提交时间" width="158" />
-        <el-table-column label="当前节点" width="128">
+        <el-table-column label="机器校验" width="110">
           <template #default="{ row }">
-            <el-tag :type="getNodeTagType(row.currentNode)" effect="light" round>{{ row.currentNode }}</el-tag>
+            <el-tooltip v-if="getMachineCheck(row)" :content="getMachineCheck(row)!.note" placement="top">
+              <el-tag :type="getMachineCheck(row)!.passed ? 'success' : 'danger'" effect="light">
+                {{ getMachineCheck(row)!.passed ? '通过' : '不通过' }}
+              </el-tag>
+            </el-tooltip>
+            <span v-else class="review-check-empty">—</span>
           </template>
         </el-table-column>
-        <el-table-column label="评审进度" width="118">
-          <template #default="{ row }">{{ getReviewProgress(row) }}</template>
-        </el-table-column>
-        <el-table-column label="审查状态" width="110">
+        <el-table-column label="AI校验" width="110">
           <template #default="{ row }">
-            <el-tag :type="getStatusTagType(getReviewState(row).status)" effect="light">
-              {{ getReviewState(row).status }}
-            </el-tag>
+            <el-tooltip v-if="getAiCheck(row)" :content="getAiCheck(row)!.opinion" placement="top">
+              <el-tag :type="getAiCheck(row)!.hasIssue ? 'danger' : 'success'" effect="light">
+                {{ getAiCheck(row)!.hasIssue ? '不通过' : '通过' }}
+              </el-tag>
+            </el-tooltip>
+            <span v-else class="review-check-empty">—</span>
           </template>
         </el-table-column>
-        <el-table-column label="审查记录" min-width="190" show-overflow-tooltip>
+        <el-table-column label="形式审查结果" width="150">
           <template #default="{ row }">
-            <div class="review-record-cell">
-              <span>{{ getReviewState(row).operator ?? '待处理' }}</span>
-              <small>{{ getReviewState(row).reviewedAt ?? '暂无审查时间' }}</small>
-              <small v-if="getReviewState(row).reason">驳回理由：{{ getReviewState(row).reason }}</small>
-            </div>
+            <el-select
+              v-if="getReviewState(row).status === '待审查'"
+              :model-value="getReviewState(row).status"
+              size="small"
+              class="review-result-select"
+              placeholder="待审查"
+              aria-label="形式审查结果"
+              @change="handleResultSelect(row, $event)"
+            >
+              <el-option label="通过" value="已通过" />
+              <el-option label="驳回" value="已驳回" />
+            </el-select>
+            <el-tooltip
+              v-else-if="getReviewState(row).status === '已驳回'"
+              :content="getReviewState(row).reason || '未填写驳回理由'"
+              placement="top"
+            >
+              <el-tag type="danger" effect="light">已驳回</el-tag>
+            </el-tooltip>
+            <el-tag v-else type="success" effect="light">已通过</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="248" fixed="right" align="center">
+        <el-table-column label="操作" width="110" fixed="right" align="center">
           <template #default="{ row }">
             <div class="review-action-cell">
-              <el-button link type="primary" :icon="View" @click="openDetail(row)">填写信息</el-button>
-              <el-button link type="success" :icon="Check" :disabled="!canReview(row)" @click="approveProject(row)">
-                通过
-              </el-button>
-              <el-button link type="danger" :icon="Close" :disabled="!canReview(row)" @click="openReject(row)">
-                驳回
-              </el-button>
+              <el-button link type="primary" :icon="View" @click="openDetail(row)">查看信息</el-button>
             </div>
           </template>
         </el-table-column>
@@ -455,11 +697,13 @@ function handleQuery() {
     <el-dialog
       v-model="detailVisible"
       class="declaration-review-dialog"
-      title="申报填写信息"
-      width="860px"
+      title="查看申报信息"
+      width="880px"
       destroy-on-close
     >
       <template v-if="activeRow">
+        <el-tabs v-model="detailActiveTab" class="review-detail-tabs">
+          <el-tab-pane label="申报书" name="application">
         <section class="application-info-panel">
           <header>
             <span class="application-info-icon">
@@ -511,6 +755,38 @@ function handleQuery() {
             </article>
           </section>
         </section>
+          </el-tab-pane>
+
+          <el-tab-pane label="AI诊断" name="ai">
+            <section class="ai-diagnosis-panel">
+              <header class="ai-diagnosis-head">
+                <span class="ai-diagnosis-icon"><el-icon><MagicStick /></el-icon></span>
+                <div>
+                  <h3>AI 形式审查诊断</h3>
+                  <p>AI 从申报人身份、申报范围、申报数量与项目库联动四个维度给出预审意见，供形式审查参考。</p>
+                </div>
+              </header>
+
+              <template v-if="activeAiDiagnosisRow">
+                <section class="ai-diagnosis-list">
+                  <div v-for="item in aiDiagnosisItems" :key="item.label" class="ai-diagnosis-item">
+                    <span class="ai-diagnosis-label">{{ item.label }}</span>
+                    <span :class="['ai-diagnosis-value', item.pass ? 'pass' : 'issue']">{{ item.value }}</span>
+                  </div>
+                  <div class="ai-diagnosis-item">
+                    <span class="ai-diagnosis-label">形式审查综合意见</span>
+                    <span :class="['ai-diagnosis-value', 'ai-opinion', activeAiDiagnosisRow.hasIssue ? 'issue' : 'pass']">
+                      {{ activeAiDiagnosisRow.opinion }}
+                    </span>
+                  </div>
+                </section>
+              </template>
+              <el-empty v-else description="暂无 AI 诊断记录" />
+
+              <p class="ai-diagnosis-tip">以上意见由 AI 预审生成，最终形式审查结论以管理员人工审核为准。</p>
+            </section>
+          </el-tab-pane>
+        </el-tabs>
       </template>
 
       <template #footer>
@@ -575,6 +851,104 @@ function handleQuery() {
   min-width: 0;
 }
 
+.review-detail-tabs :deep(.el-tabs__header) {
+  margin-bottom: 14px;
+}
+
+.ai-diagnosis-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.ai-diagnosis-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #e3ecf7;
+  border-radius: 10px;
+  background: #f6faff;
+}
+
+.ai-diagnosis-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 12px;
+  color: #3478e5;
+  background: #e8f1ff;
+  font-size: 20px;
+}
+
+.ai-diagnosis-head h3 {
+  margin: 0 0 4px;
+  color: #152b4f;
+  font-size: 15px;
+}
+
+.ai-diagnosis-head p {
+  margin: 0;
+  color: #7b8ba4;
+  font-size: 12px;
+}
+
+.ai-diagnosis-list {
+  display: grid;
+  gap: 0;
+  border: 1px solid #e3ecf7;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.ai-diagnosis-item {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.ai-diagnosis-item + .ai-diagnosis-item {
+  border-top: 1px solid #edf2f9;
+}
+
+.ai-diagnosis-label {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  color: #5f6f86;
+  background: #f7fafd;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ai-diagnosis-value {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  color: #3a4a63;
+  font-size: 13px;
+}
+
+.ai-diagnosis-value.pass {
+  color: #237a4e;
+  font-weight: 600;
+}
+
+.ai-diagnosis-value.issue {
+  color: #d04550;
+  font-weight: 600;
+}
+
+.ai-opinion {
+  line-height: 1.7;
+}
+
+.ai-diagnosis-tip {
+  margin: 0;
+  color: #98a6bb;
+  font-size: 12px;
+}
+
 .declaration-review-card {
   border: 1px solid #dce6f3;
   border-radius: 14px;
@@ -606,6 +980,12 @@ function handleQuery() {
   color: #162a46;
   font-size: 22px;
   font-weight: 700;
+}
+
+.review-batch-hint {
+  margin: 6px 0 0;
+  color: #64738a;
+  font-size: 13px;
 }
 
 .review-head-actions {
@@ -666,6 +1046,15 @@ function handleQuery() {
   display: grid;
   gap: 5px;
   min-width: 0;
+}
+
+.review-check-empty {
+  color: #b6bfcc;
+  font-size: 12.5px;
+}
+
+.review-result-select {
+  width: 116px;
 }
 
 .review-project-cell strong,
@@ -795,5 +1184,79 @@ function handleQuery() {
   .review-filter-select.small {
     width: 100%;
   }
+}
+.approval-flow-steps {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.approval-flow-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 1px solid #e7eaf0;
+  background: #ffffff;
+  color: #8a93a6;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.approval-flow-step--clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.approval-flow-step--clickable:hover {
+  border-color: #409eff;
+  color: #2f6ad9;
+  transform: translateY(-1px);
+}
+
+.approval-flow-step.done {
+  border-color: #bfe3d2;
+  background: #f2faf6;
+  color: #237a4e;
+}
+
+.approval-flow-step.active {
+  border-color: #409eff;
+  background: #409eff;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.35);
+}
+
+.approval-flow-index {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: currentColor;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 780;
+}
+
+.approval-flow-step.done .approval-flow-index {
+  background: #237a4e;
+}
+
+.approval-flow-step.active .approval-flow-index {
+  background: rgba(255, 255, 255, 0.92);
+  color: #409eff;
+}
+
+.approval-flow-step + .approval-flow-step::before {
+  content: '›';
+  order: -1;
+  margin-right: 4px;
+  color: #c0c7d4;
+  font-size: 15px;
+  font-weight: 700;
 }
 </style>

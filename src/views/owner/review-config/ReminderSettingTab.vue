@@ -25,7 +25,7 @@ const reminderTabs: ReminderTabConfig[] = [
     key: 'reviewResult',
     label: '评审结果提交提醒',
     enableLabel: '启用评审结果提交提醒',
-    options: ['评委', '子方向负责人', '科研项目管理员', '科研部负责人'],
+    options: ['评委', '子方向负责人', 'PMO', '管理办负责人'],
   },
   {
     key: 'studentPerformance',

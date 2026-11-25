@@ -28,12 +28,16 @@ const props = withDefaults(
     showQuarter?: boolean
     showCategory?: boolean
     showStatus?: boolean
+    showStatusToggle?: boolean
+    statusView?: 'active' | 'history'
   }>(),
   {
     keywordPlaceholder: '输入批次名称或批次编号',
     showQuarter: false,
     showCategory: false,
     showStatus: false,
+    showStatusToggle: false,
+    statusView: 'active',
     quarterOptions: () => [],
     categoryOptions: () => [],
     statusOptions: () => [],
@@ -44,6 +48,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: BatchFilterModel]
   query: []
   reset: []
+  statusViewChange: [view: 'active' | 'history']
 }>()
 
 const categorySelectOptions = computed<FilterOption[]>(() =>
@@ -83,6 +88,7 @@ function updateStatus(value: SelectValue) {
 
 <template>
   <section class="initiation-batch-filter-shell" aria-label="立项批次筛选">
+    <div class="batch-filter-main">
     <el-input
       class="batch-filter-keyword"
       clearable
@@ -158,6 +164,22 @@ function updateStatus(value: SelectValue) {
 
     <el-button type="primary" @click="emit('query')">查询</el-button>
     <el-button @click="emit('reset')">重置</el-button>
+    </div>
+
+    <div v-if="showStatusToggle" class="batch-status-toggle" aria-label="批次状态切换">
+      <el-button
+        :type="statusView === 'active' ? 'primary' : 'default'"
+        @click="emit('statusViewChange', 'active')"
+      >
+        正在进行中
+      </el-button>
+      <el-button
+        :type="statusView === 'history' ? 'primary' : 'default'"
+        @click="emit('statusViewChange', 'history')"
+      >
+        已结束
+      </el-button>
+    </div>
   </section>
 </template>
 
@@ -165,6 +187,7 @@ function updateStatus(value: SelectValue) {
 .initiation-batch-filter-shell {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px;
   min-width: 0;
@@ -173,6 +196,36 @@ function updateStatus(value: SelectValue) {
   border-radius: 15px;
   background: #fff;
   box-shadow: var(--shadow);
+}
+
+.batch-filter-main {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.batch-status-toggle {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.batch-status-toggle :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+
+.batch-status-toggle :deep(.el-button:first-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.batch-status-toggle :deep(.el-button + .el-button) {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 
 .batch-filter-keyword {

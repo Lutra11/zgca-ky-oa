@@ -1,4 +1,4 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import {
   getCurrentUser,
@@ -46,6 +46,9 @@ const roleRoutes: RouteRecordRaw[] = roleRouteConfigs.flatMap((role) => {
   const reviewManagementFeature = featureConfigs.find((feature) => feature.routeSegment === 'review-management')
   const initiationBatchesFeature = featureConfigs.find((feature) => feature.routeSegment === 'initiation-batches')
   const myProjectsFeature = featureConfigs.find((feature) => feature.routeSegment === 'my-projects')
+  const applicationProjectsFeature = featureConfigs.find(
+    (feature) => feature.routeSegment === 'application-projects',
+  )
   const myPapersFeature = featureConfigs.find((feature) => feature.routeSegment === 'my-papers')
   const financeWorkbenchFeature = featureConfigs.find((feature) => feature.routeSegment === 'finance-workbench')
   const financeOverviewFeature = featureConfigs.find((feature) => feature.routeSegment === 'finance-overview')
@@ -357,6 +360,24 @@ const roleRoutes: RouteRecordRaw[] = roleRouteConfigs.flatMap((role) => {
           },
         ]
       : []),
+    ...(role.key === 'projectMember' && applicationProjectsFeature
+      ? [
+          {
+            path: `${applicationProjectsFeature.router}/:projectId`,
+            name: `${role.routeName}-application-project-detail`,
+            component: DashboardView,
+            meta: {
+              requiresAuth: true,
+              roleKey: role.key,
+              roleName: role.name,
+              englishName: role.englishName,
+              featureKey: 'application-project-detail',
+              featureName: '项目详情',
+              hidden: true,
+            },
+          },
+        ]
+      : []),
     ...(myPapersFeature
       ? [
           {
@@ -443,7 +464,7 @@ const roleRoutes: RouteRecordRaw[] = roleRouteConfigs.flatMap((role) => {
 })
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory(),
   routes: [
     {
       path: '/',
@@ -458,6 +479,19 @@ const router = createRouter({
       },
     },
     ...roleRoutes,
+    {
+      path: '/review-judge/project-review/:projectId',
+      name: 'review-judge-project-review-detail',
+      component: DashboardView,
+      meta: {
+        requiresAuth: true,
+        roleKey: 'reviewer',
+        roleName: '评委',
+        featureKey: 'reviewer-project-review-detail',
+        featureName: '评审打分',
+        hidden: true,
+      },
+    },
     {
       path: '/research-project-admin/finance-overview',
       redirect: '/research-project-admin/finance-workbench',

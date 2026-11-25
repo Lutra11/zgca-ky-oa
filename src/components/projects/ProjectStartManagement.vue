@@ -248,7 +248,7 @@ function confirmStart() {
   pendingStartProjects.value.forEach((project) => {
     records[getProjectKey(project)] = {
       startedAt,
-      operator: '科研项目管理员',
+      operator: 'PMO',
     }
   })
   saveStartRecords(records)

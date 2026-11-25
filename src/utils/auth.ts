@@ -16,7 +16,7 @@ const STORAGE_KEY = 'zgca_ky_oa_current_user'
 export const roleRouteConfigs: RoleRouteConfig[] = [
   {
     key: 'researchProjectAdmin',
-    name: '科研项目管理员',
+    name: 'PMO',
     englishName: 'Research Project Administrator',
     routeName: 'research-project-admin',
     basePath: '/research-project-admin',
@@ -24,7 +24,7 @@ export const roleRouteConfigs: RoleRouteConfig[] = [
   },
   {
     key: 'researchDepartmentLeader',
-    name: '科研部负责人',
+    name: '管理办负责人',
     englishName: 'Research Department Leader',
     routeName: 'research-dept-leader',
     basePath: '/research-dept-leader',
@@ -32,7 +32,7 @@ export const roleRouteConfigs: RoleRouteConfig[] = [
   },
   {
     key: 'facultyLeader',
-    name: '学部负责人',
+    name: '学部负责人/学部助理',
     englishName: 'Faculty Leader',
     routeName: 'faculty-leader',
     basePath: '/faculty-leader',

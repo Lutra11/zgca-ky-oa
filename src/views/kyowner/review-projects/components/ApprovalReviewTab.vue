@@ -70,7 +70,7 @@ async function approveReview(approval: ReviewApproval) {
   }
 
   const updatedApprovals = updateApprovalStatus(approvals.value, approval.id, 'approved', {
-    operator: currentUser?.displayName ?? '科研部负责人',
+    operator: currentUser?.displayName ?? '管理办负责人',
   })
   approvals.value = updatedApprovals
   saveReviewApprovals(updatedApprovals)
@@ -92,7 +92,7 @@ function rejectReview(reason: string) {
 
   const updatedApprovals = updateApprovalStatus(approvals.value, approval.id, 'rejected', {
     reason,
-    operator: currentUser?.displayName ?? '科研部负责人',
+    operator: currentUser?.displayName ?? '管理办负责人',
   })
   approvals.value = updatedApprovals
   saveReviewApprovals(updatedApprovals)

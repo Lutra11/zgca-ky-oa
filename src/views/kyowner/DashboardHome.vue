@@ -5,10 +5,10 @@ defineProps<{
 </script>
 
 <template>
-  <section class="kyowner-placeholder" aria-label="科研部负责人首页">
+  <section class="kyowner-placeholder" aria-label="管理办负责人首页">
     <div class="placeholder-card">
-      <span class="placeholder-kicker">{{ roleName ?? '科研部负责人' }}</span>
-      <h3>这里是科研部负责人首页</h3>
+      <span class="placeholder-kicker">{{ roleName ?? '管理办负责人' }}</span>
+      <h3>这里是管理办负责人首页</h3>
     </div>
   </section>
 </template>

@@ -27,6 +27,8 @@ export interface InitiationBatchMockRow {
   batch_apply_deadline?: string
   batch_limit_count?: number
   batch_guide_file?: InitiationGuideFileMock
+  /** AN-MWUF30LW：批次当前所处流转阶段（guide 发布申报 / formal 形式审查 / final 初审 / recheck 复审 / archive 立项入库），驱动批次流转线初始步骤与进度展示 */
+  flowStage?: 'guide' | 'formal' | 'final' | 'recheck' | 'archive'
   remark?: string
   year: number
   quarter: number
@@ -69,6 +71,7 @@ export interface InitiationToolEntry {
 export const initiationBatchMockRows: InitiationBatchMockRow[] = [
   {
     id: 'batch-2026-q3',
+    flowStage: 'final', // AN-MWUF30LW：批次流转阶段
     batchName: '2026 年第 3 季度科研项目立项',
     batchCode: 'LXB-2026-Q3',
     batch_name: '2026 年第 3 季度科研项目立项批次',
@@ -94,7 +97,88 @@ export const initiationBatchMockRows: InitiationBatchMockRow[] = [
     isCurrent: true,
   },
   {
+    id: 'batch-2026-q4',
+    flowStage: 'formal', // AN-MWUF30LW：批次流转阶段
+    batchName: '2026 年第 4 季度科研项目立项',
+    batchCode: 'LXB-2026-Q4',
+    batch_name: '2026 年第 4 季度科研项目立项批次',
+    batch_code: 'LXB-2026-Q4',
+    project_category: '纵向项目',
+    batch_introduction: '本批次面向年度重点科研方向开放申报，支持跨团队协同攻关与阶段性成果产出，申报期内可随时提交并修改材料。',
+    batch_apply_start: '2026-11-01 09:00',
+    batch_apply_deadline: '2026-12-20 18:00',
+    batch_limit_count: 0,
+    batch_guide_file: {
+      name: '2026 年第 4 季度科研项目立项指南.pdf',
+      size: '2.6 MB',
+    },
+    remark: '管理员内部备注：当前批次重点关注跨学科原创性项目。',
+    year: 2026,
+    quarter: 4,
+    applyPeriod: '2026.11.01-2026.12.20',
+    status: '申报中',
+    submittedProjectCount: 6,
+    reviewingCount: 2,
+    establishedCount: 0,
+    progress: 25,
+    isCurrent: true,
+  },
+  {
+    id: 'batch-2026-winter',
+    flowStage: 'formal', // AN-MWUF30LW：批次流转阶段
+    batchName: '2026 冬季预研项目专项立项',
+    batchCode: 'LXB-2026-W01',
+    batch_name: '2026 冬季预研项目专项立项批次',
+    batch_code: 'LXB-2026-W01',
+    project_category: '预研项目',
+    batch_introduction: '本批次面向预研项目定向开放，重点支持处于概念验证阶段、具备培育潜力但尚不满足正式立项条件的探索性课题。',
+    batch_apply_start: '2026-11-10 09:00',
+    batch_apply_deadline: '2026-12-31 18:00',
+    batch_limit_count: 12,
+    batch_guide_file: {
+      name: '2026 冬季预研项目专项立项指南.pdf',
+      size: '1.8 MB',
+    },
+    remark: '管理员内部备注：预研专项，名额有限，重点关注方向契合度。',
+    year: 2026,
+    quarter: 4,
+    applyPeriod: '2026.11.10-2026.12.31',
+    status: '申报中',
+    submittedProjectCount: 4,
+    reviewingCount: 1,
+    establishedCount: 0,
+    progress: 18,
+    isCurrent: true,
+  },
+  {
+    id: 'batch-2027-q1',
+    flowStage: 'guide', // AN-MWUF30LW：批次流转阶段
+    batchName: '2027 年第 1 季度学生自主立项',
+    batchCode: 'LXB-2027-Q1',
+    batch_name: '2027 年第 1 季度学生自主立项批次',
+    batch_code: 'LXB-2027-Q1',
+    project_category: '学生自主立项',
+    batch_introduction: '本批次面向学生自主立项开放申报，鼓励围绕自身研究方向提出独立课题，由指导教师确认后进入评审流程。',
+    batch_apply_start: '2026-11-15 09:00',
+    batch_apply_deadline: '2027-01-15 18:00',
+    batch_limit_count: 30,
+    batch_guide_file: {
+      name: '2027 年第 1 季度学生自主立项指南.pdf',
+      size: '2.0 MB',
+    },
+    remark: '管理员内部备注：学生批次，需指导教师确认后才可提交。',
+    year: 2027,
+    quarter: 1,
+    applyPeriod: '2026.11.15-2027.01.15',
+    status: '申报中',
+    submittedProjectCount: 2,
+    reviewingCount: 0,
+    establishedCount: 0,
+    progress: 8,
+    isCurrent: true,
+  },  {
     id: 'batch-2026-q2',
+    flowStage: 'archive', // AN-MWUF30LW：批次流转阶段
     batchName: '2026 年第 2 季度科研项目立项',
     batchCode: 'LXB-2026-Q2',
     batch_name: '2026 年第 2 季度科研项目立项批次',
@@ -121,6 +205,7 @@ export const initiationBatchMockRows: InitiationBatchMockRow[] = [
   },
   {
     id: 'batch-2026-q1',
+    flowStage: 'archive', // AN-MWUF30LW：批次流转阶段
     batchName: '2026 年第 1 季度科研项目立项',
     batchCode: 'LXB-2026-Q1',
     batch_name: '2026 年第 1 季度科研项目立项批次',
@@ -147,6 +232,7 @@ export const initiationBatchMockRows: InitiationBatchMockRow[] = [
   },
   {
     id: 'batch-2025-q4',
+    flowStage: 'archive', // AN-MWUF30LW：批次流转阶段
     batchName: '2025 年第 4 季度科研项目立项',
     batchCode: 'LXB-2025-Q4',
     batch_name: '2025 年第 4 季度科研项目立项批次',
@@ -173,6 +259,7 @@ export const initiationBatchMockRows: InitiationBatchMockRow[] = [
   },
   {
     id: 'batch-2025-q3',
+    flowStage: 'archive', // AN-MWUF30LW：批次流转阶段
     batchName: '2025 年第 3 季度科研项目立项',
     batchCode: 'LXB-2025-Q3',
     batch_name: '2025 年第 3 季度科研项目立项批次',
@@ -199,6 +286,7 @@ export const initiationBatchMockRows: InitiationBatchMockRow[] = [
   },
   {
     id: 'batch-2025-q2',
+    flowStage: 'archive', // AN-MWUF30LW：批次流转阶段
     batchName: '2025 年第 2 季度科研项目立项',
     batchCode: 'LXB-2025-Q2',
     batch_name: '2025 年第 2 季度科研项目立项批次',

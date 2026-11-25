@@ -146,7 +146,7 @@
         "enabled": true,
         "advanceDays": 2,
         "frequencyDays": 1,
-        "receiverGroups": ["评委", "子方向负责人", "科研项目管理员"]
+        "receiverGroups": ["评委", "子方向负责人", "PMO"]
       },
       "studentPerformance": {
         "enabled": true,

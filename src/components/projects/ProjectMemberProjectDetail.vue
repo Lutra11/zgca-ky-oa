@@ -7,9 +7,17 @@ import { getProjectMemberProjectDetail } from '../../dataset/projectMemberProjec
 import type { ProjectApplicationWizardState } from '../../dataset/projectApplicationWizardMock'
 import { formatCurrency } from '../finance/financeFormat'
 
-const props = defineProps<{
-  currentUser: LoggedInUser | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    currentUser: LoggedInUser | null
+    backPath?: string
+    hideCommitment?: boolean
+  }>(),
+  {
+    backPath: '/project-member/my-projects',
+    hideCommitment: false,
+  },
+)
 
 const route = useRoute()
 const router = useRouter()
@@ -27,48 +35,14 @@ const project = computed(() => {
 
 const application = computed(() => project.value?.application ?? null)
 
-const budgetRows = computed(() => {
-  const budget = application.value?.budget
+const allocationRows = computed(() => application.value?.annualAllocations ?? [])
 
-  if (!budget) {
-    return []
-  }
-
-  return [
-    {
-      subject: '设备费',
-      amount: budget.equipment,
-      note: budget.equipmentNote,
-    },
-    {
-      subject: '其中：设备购置费',
-      amount: budget.purchase,
-      note: budget.purchaseNote,
-      secondary: true,
-    },
-    {
-      subject: '业务费',
-      amount: budget.business,
-      note: budget.businessNote,
-    },
-    {
-      subject: '劳务费',
-      amount: budget.labor,
-      note: budget.laborNote,
-    },
-  ]
-})
-
-const budgetTotal = computed(() => {
-  const budget = application.value?.budget
-
-  return budget ? budget.equipment + budget.business + budget.labor : 0
-})
-
-const hasSpecialCompute = computed(() => application.value?.specialCompute === 'yes')
+const allocationTotal = computed(() =>
+  allocationRows.value.reduce((sum, item) => sum + (Number(item.amount) || 0), 0),
+)
 
 function backToList() {
-  router.push('/project-member/my-projects')
+  router.push(props.backPath)
 }
 
 function displayText(value: string | number | undefined) {
@@ -77,14 +51,6 @@ function displayText(value: string | number | undefined) {
   }
 
   return value ? String(value) : '尚未填写'
-}
-
-function maskIdCard(value: string) {
-  if (!value || value.length < 8) {
-    return '尚未填写'
-  }
-
-  return `${value.slice(0, 6)}********${value.slice(-4)}`
 }
 
 function formatBudgetWan(value: number) {
@@ -103,8 +69,12 @@ function getStatusType(status: string) {
   return 'primary'
 }
 
-function getProjectDirection(applicationState: ProjectApplicationWizardState) {
-  return applicationState.projectDirection || '尚未填写'
+function getSubdirection(applicationState: ProjectApplicationWizardState) {
+  return applicationState.subdirection || '尚未填写'
+}
+
+function formatWan(value: number | undefined) {
+  return `${(Number(value) || 0).toFixed(2)} 万元`
 }
 </script>
 
@@ -114,7 +84,7 @@ function getProjectDirection(applicationState: ProjectApplicationWizardState) {
       <section class="member-project-detail-hero">
         <el-button :icon="Back" circle aria-label="返回我的项目" @click="backToList" />
         <div class="detail-hero-main">
-          <p>我的项目 / 项目详情</p>
+          <p>{{ backPath.includes("application-projects") ? "我的项目 / 项目详情" : "我的项目 / 项目详情" }}</p>
           <h1>{{ project.projectName }}</h1>
           <span>{{ project.projectCode }} · {{ project.batchName }}</span>
         </div>
@@ -156,16 +126,16 @@ function getProjectDirection(applicationState: ProjectApplicationWizardState) {
           <el-tab-pane label="基本信息" name="basic">
             <el-descriptions :column="3" border>
               <el-descriptions-item label="项目名称">{{ application.projectName }}</el-descriptions-item>
-              <el-descriptions-item label="项目方向">{{ getProjectDirection(application) }}</el-descriptions-item>
-              <el-descriptions-item label="项目类别">{{ application.projectCategory }}</el-descriptions-item>
+              <el-descriptions-item label="所属学部">{{ displayText(application.department) }}</el-descriptions-item>
+              <el-descriptions-item label="所属子方向">{{ getSubdirection(application) }}</el-descriptions-item>
+              <el-descriptions-item label="类别">{{ application.projectCategory }}</el-descriptions-item>
               <el-descriptions-item label="单位名称">{{ application.unitName }}</el-descriptions-item>
               <el-descriptions-item label="姓名">{{ application.applicantName }}</el-descriptions-item>
               <el-descriptions-item label="性别">{{ displayText(application.gender) }}</el-descriptions-item>
               <el-descriptions-item label="出生年月">{{ displayText(application.birthMonth) }}</el-descriptions-item>
               <el-descriptions-item label="学历">{{ displayText(application.education) }}</el-descriptions-item>
               <el-descriptions-item label="职称">{{ displayText(application.professionalTitle) }}</el-descriptions-item>
-              <el-descriptions-item label="手机">{{ displayText(application.mobile) }}</el-descriptions-item>
-              <el-descriptions-item label="电话">{{ displayText(application.telephone) }}</el-descriptions-item>
+              <el-descriptions-item label="手机/电话">{{ displayText(application.mobile) }}</el-descriptions-item>
               <el-descriptions-item label="邮箱">{{ displayText(application.email) }}</el-descriptions-item>
               <el-descriptions-item label="研究周期">{{ application.researchPeriod }} 年</el-descriptions-item>
               <el-descriptions-item label="首年经费预算">
@@ -184,47 +154,15 @@ function getProjectDirection(applicationState: ProjectApplicationWizardState) {
             <div class="detail-section-list">
               <section>
                 <h3>一、研究目的和意义简述</h3>
-                <p>{{ displayText(application.purposeSignificance) }}</p>
-              </section>
-              <section>
-                <h3>国内外研究现状</h3>
-                <p>{{ displayText(application.researchStatus) }}</p>
+                <p>{{ displayText(application.researchPurpose) }}</p>
               </section>
               <section>
                 <h3>二、主要研究内容</h3>
-                <p>{{ displayText(application.mainWork) }}</p>
-              </section>
-              <section>
-                <h3>关键科学问题</h3>
-                <p>{{ displayText(application.keyProblem) }}</p>
-              </section>
-              <section>
-                <h3>主要技术难点</h3>
-                <p>{{ displayText(application.technicalDifficulty) }}</p>
-              </section>
-              <section>
-                <h3>技术路线</h3>
-                <p>{{ displayText(application.technicalRoute) }}</p>
-              </section>
-              <section>
-                <h3>方法创新</h3>
-                <p>{{ displayText(application.methodInnovation) }}</p>
+                <p>{{ displayText(application.mainResearchContent) }}</p>
               </section>
               <section>
                 <h3>三、研究基础</h3>
                 <p>{{ displayText(application.researchFoundation) }}</p>
-              </section>
-              <section>
-                <h3>申请人工作背景</h3>
-                <p>{{ displayText(application.applicantBackground) }}</p>
-              </section>
-              <section>
-                <h3>科研团队情况</h3>
-                <p>{{ displayText(application.teamProfile) }}</p>
-              </section>
-              <section>
-                <h3>科研项目组织实施经验</h3>
-                <p>{{ displayText(application.implementationExperience) }}</p>
               </section>
             </div>
           </el-tab-pane>
@@ -232,41 +170,13 @@ function getProjectDirection(applicationState: ProjectApplicationWizardState) {
           <el-tab-pane label="任务与指标" name="task">
             <section class="detail-section-block">
               <h3>四、年度研究任务和实施方案</h3>
-              <el-table class="detail-inner-table" :data="application.annualPlans" border>
-                <el-table-column prop="yearLabel" label="年度" width="110" />
-                <el-table-column prop="researchTasks" label="主要研究任务" min-width="220" show-overflow-tooltip />
-                <el-table-column prop="implementationPlan" label="实施方案" min-width="220" show-overflow-tooltip />
-                <el-table-column prop="cooperationMode" label="研究计划及合作方式" min-width="220" show-overflow-tooltip />
-                <el-table-column prop="studentTrainingGoal" label="学生培养目标" min-width="200" show-overflow-tooltip />
-              </el-table>
+              <p>{{ displayText(application.annualTasks) }}</p>
             </section>
 
-            <div class="detail-section-list two-columns">
-              <section>
-                <h3>五、总体考核指标</h3>
-                <p>{{ displayText(application.overallGoal) }}</p>
-              </section>
-              <section>
-                <h3>年度目标</h3>
-                <p>{{ displayText(application.annualGoal) }}</p>
-              </section>
-              <section>
-                <h3>预期成果</h3>
-                <p>{{ displayText(application.expectedOutcomes) }}</p>
-              </section>
-              <section>
-                <h3>社会、学术或产业影响力</h3>
-                <p>{{ displayText(application.impact) }}</p>
-              </section>
-              <section>
-                <h3>人才队伍建设</h3>
-                <p>{{ displayText(application.talentDevelopment) }}</p>
-              </section>
-              <section>
-                <h3>其他指标</h3>
-                <p>{{ displayText(application.otherIndicators) }}</p>
-              </section>
-            </div>
+            <section class="detail-section-block">
+              <h3>五、总体考核指标</h3>
+              <p>{{ displayText(application.assessmentIndicators) }}</p>
+            </section>
           </el-tab-pane>
 
           <el-tab-pane label="团队与经费" name="team">
@@ -284,42 +194,30 @@ function getProjectDirection(applicationState: ProjectApplicationWizardState) {
             </section>
 
             <section class="detail-section-block">
-              <h3>七、经费预算表</h3>
-              <el-table class="detail-inner-table" :data="budgetRows" border>
-                <el-table-column label="预算科目" min-width="160">
-                  <template #default="{ row }">
-                    <span :class="{ secondary: row.secondary }">{{ row.subject }}</span>
-                  </template>
-                </el-table-column>
-                <el-table-column label="金额" width="132" align="right">
-                  <template #default="{ row }">{{ formatBudgetWan(row.amount) }}</template>
-                </el-table-column>
-                <el-table-column prop="note" label="测算说明" min-width="260" show-overflow-tooltip />
-              </el-table>
-              <div class="budget-total">
-                <span>预算合计</span>
-                <strong>{{ formatBudgetWan(budgetTotal) }}</strong>
-                <em>设备购置费为设备费明细，不重复计入合计</em>
-              </div>
-            </section>
-
-            <section class="detail-section-block">
-              <h3>八、算力说明</h3>
-              <el-descriptions :column="2" border>
-                <el-descriptions-item label="是否有特殊算力需求">
-                  {{ hasSpecialCompute ? '有特殊算力需求' : '无特殊算力需求' }}
+              <h3>项目预算明细</h3>
+              <el-descriptions :column="2" border style="margin-bottom: 12px">
+                <el-descriptions-item label="项目总预算（PMO 预设）">
+                  {{ formatWan(application.totalBudget) }}
                 </el-descriptions-item>
-                <el-descriptions-item label="算力规模">{{ displayText(application.computeScale) }}</el-descriptions-item>
-                <el-descriptions-item label="使用周期">{{ displayText(application.computePeriod) }}</el-descriptions-item>
-                <el-descriptions-item label="特殊环境">{{ displayText(application.computeEnvironment) }}</el-descriptions-item>
-                <el-descriptions-item label="用途和原因" :span="2">
-                  {{ displayText(application.computePurposeReason) }}
+                <el-descriptions-item label="首年经费">
+                  {{ formatBudgetWan(application.firstYearBudget) }}
                 </el-descriptions-item>
               </el-descriptions>
+              <el-table class="detail-inner-table" :data="allocationRows" border>
+                <el-table-column prop="yearLabel" label="年度" width="140" />
+                <el-table-column label="拨付金额" align="right">
+                  <template #default="{ row }">{{ formatWan(row.amount) }}</template>
+                </el-table-column>
+              </el-table>
+              <div class="budget-total">
+                <span>分年度拨付合计</span>
+                <strong>{{ formatWan(allocationTotal) }}</strong>
+                <em v-if="application.packageNote">{{ application.packageNote }}</em>
+              </div>
             </section>
           </el-tab-pane>
 
-          <el-tab-pane label="承诺材料" name="commitment">
+          <el-tab-pane v-if="!hideCommitment" label="承诺材料" name="commitment">
             <section class="commitment-grid">
               <article>
                 <span class="file-icon">W</span>
@@ -340,30 +238,26 @@ function getProjectDirection(applicationState: ProjectApplicationWizardState) {
             </section>
 
             <section class="detail-section-block">
-              <h3>九、项目经费使用承诺书</h3>
+              <h3>项目经费使用承诺书</h3>
               <el-descriptions :column="2" border>
                 <el-descriptions-item label="项目名称">{{ application.projectName }}</el-descriptions-item>
                 <el-descriptions-item label="项目负责人">{{ application.applicantName }}</el-descriptions-item>
-                <el-descriptions-item label="负责人身份证号">
-                  {{ maskIdCard(application.leaderIdCard) }}
-                </el-descriptions-item>
                 <el-descriptions-item label="是否存在联合负责人">
                   {{ application.jointEnabled ? '是' : '否' }}
                 </el-descriptions-item>
-                <el-descriptions-item v-if="application.jointEnabled" label="联合负责人">
-                  {{ displayText(application.jointName) }}
+                <el-descriptions-item v-if="application.jointEnabled" label="联合负责人姓名">
+                  {{ displayText(application.jointLeaderName) }}
                 </el-descriptions-item>
-                <el-descriptions-item v-if="application.jointEnabled" label="联合负责人身份证号">
-                  {{ maskIdCard(application.jointIdCard) }}
-                </el-descriptions-item>
-                <el-descriptions-item label="承诺确认">
+                <el-descriptions-item label="在线确认">
                   <el-tag :type="application.consent ? 'success' : 'warning'" effect="light">
-                    {{ application.consent ? '已阅读并同意' : '未确认' }}
+                    {{ application.consent ? '已确认' : '未确认' }}
                   </el-tag>
                 </el-descriptions-item>
-                <el-descriptions-item label="负责人签名">
-                  <el-tag type="success" effect="light">已采集</el-tag>
-                  <span class="sign-date">日期：{{ application.leaderSignDate }}</span>
+                <el-descriptions-item label="系统记录">
+                  确认人：{{ application.applicantName }}
+                  <template v-if="application.consentConfirmedAt">
+                    · 确认时间：{{ application.consentConfirmedAt }}
+                  </template>
                 </el-descriptions-item>
               </el-descriptions>
             </section>

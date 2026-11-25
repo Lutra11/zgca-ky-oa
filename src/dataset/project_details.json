@@ -122,7 +122,7 @@
         "label": "形式审核",
         "startTime": "2026-04-11",
         "endTime": "2026-04-15",
-        "owner": "科研项目管理员",
+        "owner": "PMO",
         "status": "done",
         "result": "形式审核通过"
       },
@@ -131,7 +131,7 @@
         "label": "项目评审",
         "startTime": "2026-05-20",
         "endTime": "2026-07-25",
-        "owner": "科研项目管理员",
+        "owner": "PMO",
         "status": "active",
         "result": "专家评审进行中"
       },
@@ -149,7 +149,7 @@
         "label": "验收结项",
         "startTime": "2027-04-01",
         "endTime": "2027-04-14",
-        "owner": "科研项目管理员",
+        "owner": "PMO",
         "status": "pending",
         "result": "未开始"
       }
@@ -179,7 +179,7 @@
       {
         "date": "2026-07-25 18:00",
         "title": "评审截止",
-        "operator": "科研项目管理员",
+        "operator": "PMO",
         "note": "需完成所有专家评审提交",
         "status": "active"
       },
@@ -241,7 +241,7 @@
         "time": "2026-05-20 09:00"
       },
       {
-        "operator": "科研项目管理员",
+        "operator": "PMO",
         "type": "审核通过",
         "content": "项目形式审核通过",
         "time": "2026-04-15 15:30"
@@ -385,7 +385,7 @@
         "label": "形式审核",
         "startTime": "2026-04-11",
         "endTime": "2026-04-15",
-        "owner": "科研项目管理员",
+        "owner": "PMO",
         "status": "done",
         "result": "材料完整，审核通过"
       },
@@ -394,7 +394,7 @@
         "label": "项目评审",
         "startTime": "2026-07-12",
         "endTime": "2026-07-25",
-        "owner": "科研项目管理员",
+        "owner": "PMO",
         "status": "active",
         "result": "评审进行中"
       },
@@ -412,7 +412,7 @@
         "label": "验收结项",
         "startTime": "2027-04-01",
         "endTime": "2027-04-14",
-        "owner": "科研项目管理员",
+        "owner": "PMO",
         "status": "pending",
         "result": "未开始"
       }
@@ -428,7 +428,7 @@
       {
         "date": "2026-04-15",
         "title": "形式审核通过",
-        "operator": "科研项目管理员",
+        "operator": "PMO",
         "note": "材料通过形式审核",
         "status": "done"
       },
@@ -442,7 +442,7 @@
       {
         "date": "2026-07-25 18:00",
         "title": "评审截止",
-        "operator": "科研项目管理员",
+        "operator": "PMO",
         "note": "等待1名评委提交",
         "status": "active"
       },
@@ -478,7 +478,7 @@
         "time": "2026-04-10 09:30"
       },
       {
-        "operator": "科研项目管理员",
+        "operator": "PMO",
         "type": "分配评委",
         "content": "为项目分配4名评委",
         "time": "2026-07-13 10:20"
@@ -619,7 +619,7 @@
         "label": "形式审核",
         "startTime": "2026-03-19",
         "endTime": "2026-03-20",
-        "owner": "科研项目管理员",
+        "owner": "PMO",
         "status": "done",
         "result": "审核通过"
       },
@@ -628,7 +628,7 @@
         "label": "项目评审",
         "startTime": "2026-07-11",
         "endTime": "2026-07-18",
-        "owner": "科研项目管理员",
+        "owner": "PMO",
         "status": "done",
         "result": "评审通过"
       },
@@ -646,7 +646,7 @@
         "label": "验收结项",
         "startTime": "2026-07-18",
         "endTime": "2026-07-18",
-        "owner": "科研项目管理员",
+        "owner": "PMO",
         "status": "done",
         "result": "已结项"
       }
@@ -662,7 +662,7 @@
       {
         "date": "2026-03-20",
         "title": "形式审核通过",
-        "operator": "科研项目管理员",
+        "operator": "PMO",
         "note": "材料完整",
         "status": "done"
       },

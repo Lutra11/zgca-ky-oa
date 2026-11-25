@@ -1,0 +1,9 @@
+{
+  "_comment": "Hermes 已固化进源码的字段说明 ID 清单。页面右下角点「✓ 已处理」（字段说明工具条）读取本文件同步到浏览器 localStorage，已固化的说明角标变灰、不再被复制。没有已固化项时保持空数组即可。",
+  "done": [
+    "FD-MWU1XD2J",
+    "FD-MWVNYLE8",
+    "FD-MWVO6EAB",
+    "FD-MWVQVUST"
+  ]
+}

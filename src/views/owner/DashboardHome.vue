@@ -126,7 +126,7 @@ const displayName = computed(() => props.user?.displayName ?? '科研管理员')
 
 const displayInitial = computed(() => displayName.value.slice(0, 1))
 
-const roleLabel = computed(() => props.roleName ?? '科研项目管理员')
+const roleLabel = computed(() => props.roleName ?? 'PMO')
 
 const projectTypeTotal = computed(() =>
   dashboardData.projectTypeDistribution.reduce((total, item) => total + item.value, 0),
@@ -372,7 +372,7 @@ function formatCurrentDate(date: Date) {
 </script>
 
 <template>
-  <section class="owner-dashboard-home" aria-label="科研项目管理员首页">
+  <section class="owner-dashboard-home" aria-label="PMO首页">
     <header class="welcome-panel">
       <div class="welcome-main">
         <div class="welcome-avatar">

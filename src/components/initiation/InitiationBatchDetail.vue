@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Document } from '@element-plus/icons-vue'
 import type { InitiationBatchMockRow } from '../../dataset/initiationProjectsMock'
+import LaunchPlanGantt from './LaunchPlanGantt.vue'
 
 type LeaderBatchStatus = '未开始' | '申报中' | '已结束'
 
@@ -12,6 +13,10 @@ const props = defineProps<{
   showApplyAction?: boolean
   canApply?: boolean
   applyDisabledReason?: string
+  /** 负责人已在该批次提交申报——操作按钮从「立即申报」切换为「查看我的申请」 */
+  applied?: boolean
+  /** 已提交申报的项目名（applied 态按钮旁展示） */
+  appliedProjectLabel?: string
 }>()
 
 const emit = defineEmits<{
@@ -55,12 +60,21 @@ const statusTagClass = computed(() => ({
         <em>{{ remainingText }}</em>
         <el-tooltip
           v-if="showApplyAction"
-          :disabled="canApply"
+          :disabled="canApply || applied"
           :content="applyDisabledReason"
           placement="top"
         >
           <span class="summary-apply-button-wrap">
-            <el-button type="primary" :disabled="!canApply" @click="emit('apply', batch)">
+            <template v-if="applied">
+              <span v-if="appliedProjectLabel" class="summary-applied-label" :title="appliedProjectLabel">
+                已提交：{{ appliedProjectLabel }}
+              </span>
+              <el-button type="success" @click="emit('apply', batch)">
+                查看我的申请
+                <span aria-hidden="true">›</span>
+              </el-button>
+            </template>
+            <el-button v-else type="primary" :disabled="!canApply" @click="emit('apply', batch)">
               立即申报
             </el-button>
           </span>
@@ -74,7 +88,7 @@ const statusTagClass = computed(() => ({
           <span class="detail-section-index">01</span>
           <div>
             <h2>批次基本信息</h2>
-            <p>以下信息由科研项目管理员发布</p>
+            <p>以下信息由PMO发布</p>
           </div>
         </div>
 
@@ -130,6 +144,8 @@ const statusTagClass = computed(() => ({
             </div>
           </div>
         </div>
+
+        <LaunchPlanGantt />
       </section>
 
       <div class="detail-divider"></div>
@@ -166,11 +182,14 @@ const statusTagClass = computed(() => ({
 <style scoped>
 .leader-batch-detail-page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: 18px;
 }
 
 .leader-batch-summary-card,
 .leader-batch-detail-card {
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 15px;
   background: #fff;
@@ -273,6 +292,18 @@ const statusTagClass = computed(() => ({
 
 .summary-apply-button-wrap :deep(.el-button) {
   min-width: 116px;
+}
+
+.summary-applied-label {
+  display: inline-block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 10px;
+  font-size: 12px;
+  color: #35ad7b;
+  vertical-align: middle;
 }
 
 .leader-batch-detail-card {

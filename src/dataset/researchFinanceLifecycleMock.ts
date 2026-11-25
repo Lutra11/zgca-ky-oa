@@ -822,7 +822,7 @@ export const budgetAdjustments: BudgetAdjustment[] = [
     content: '结题前收回未使用包干经费',
     amount: 12000,
     applicant: '张天宇',
-    currentNode: '科研部负责人',
+    currentNode: '管理办负责人',
     approvalStatus: '已通过',
     financeSyncStatus: 'SUCCESS',
     receiptStatus: '已回执',

@@ -433,7 +433,7 @@ function toLeaderProject(project: ProjectMemberProjectRow, currentUser: LoggedIn
     leader_id: currentUser?.id ?? project.leaderId,
     leader_name: currentUser?.displayName ?? project.leaderName,
     department_name: project.departmentName,
-    research_direction: project.application.projectDirection || project.projectCategory,
+    research_direction: project.application.subdirection || project.projectCategory,
     project_description: project.application.abstract || project.projectName,
     project_status: project.projectStatus,
   }

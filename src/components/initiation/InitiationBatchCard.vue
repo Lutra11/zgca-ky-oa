@@ -8,6 +8,8 @@ const props = defineProps<{
   batch: InitiationBatchMockRow
   status: LeaderBatchStatus
   remainingText?: string
+  /** 负责人已在该批次提交申报——按钮从「查看详情」切换为「查看我的申请」 */
+  applied?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -95,10 +97,10 @@ const tagClass = computed(() => ({
     <footer class="batch-card-action">
       <el-button
         class="batch-view-button"
-        :type="isApplying ? 'primary' : 'default'"
+        :type="applied ? 'success' : isApplying ? 'primary' : 'default'"
         @click="emit('view', batch)"
       >
-        查看详情
+        {{ applied ? '查看我的申请' : '查看详情' }}
         <span aria-hidden="true">›</span>
       </el-button>
     </footer>
